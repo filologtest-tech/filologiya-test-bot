@@ -3,31 +3,20 @@ const TelegramBot = require('node-telegram-bot-api');
 const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
 
+// 🔴 O‘ZINGNI ID QO‘Y
+const ADMIN_ID = elmuradovic_1;
+
 // ===== USERS =====
 let users = {};
+let payments = []; // log
 
 // ===== FANLAR =====
 const subjects = {
-    adabiyot: {
-        name: "Adabiyotshunoslik asoslari",
-        link: "https://test1.com"
-    },
-    hozirgi_rus: {
-        name: "Hozirgi rus tili",
-        link: "https://test2.com"
-    },
-    rus_tarix: {
-        name: "Rus adabiyoti tarixi",
-        link: "https://test3.com"
-    },
-    praktikum: {
-        name: "Rus tili praktikumi",
-        link: "https://test4.com"
-    },
-    umumiy: {
-        name: "Umumiy tilshunoslik",
-        link: "https://test5.com"
-    }
+    adabiyot: { name: "Adabiyotshunoslik asoslari", link: "https://test1.com" },
+    hozirgi_rus: { name: "Hozirgi rus tili", link: "https://test2.com" },
+    rus_tarix: { name: "Rus adabiyoti tarixi", link: "https://test3.com" },
+    praktikum: { name: "Rus tili praktikumi", link: "https://test4.com" },
+    umumiy: { name: "Umumiy tilshunoslik", link: "https://test5.com" }
 };
 
 // ===== START =====
@@ -39,13 +28,14 @@ bot.onText(/\/start/, (msg) => {
         name: "",
         surname: "",
         group: "",
-        paidSubjects: {}
+        paidSubjects: {},
+        pending: null
     };
 
     bot.sendMessage(id, "Ismingizni kiriting:");
 });
 
-// ===== MESSAGE (RO‘YXAT) =====
+// ===== RO‘YXAT =====
 bot.on("message", (msg) => {
     const id = msg.chat.id;
     const text = msg.text;
@@ -58,33 +48,31 @@ bot.on("message", (msg) => {
     if (user.step === "name") {
         user.name = text;
         user.step = "surname";
-        return bot.sendMessage(id, "Familiyangizni kiriting:");
+        return bot.sendMessage(id, "Familiya:");
     }
 
     if (user.step === "surname") {
         user.surname = text;
         user.step = "group";
-        return bot.sendMessage(id, "Guruhingizni kiriting:");
+        return bot.sendMessage(id, "Guruh:");
     }
 
     if (user.step === "group") {
         user.group = text;
         user.step = "done";
 
-        bot.sendMessage(
-            id,
-            `✅ Ro‘yxatdan o‘tdingiz:\n\n👤 ${user.name} ${user.surname}\n🏫 ${user.group}`
+        bot.sendMessage(id,
+            `✅ ${user.name} ${user.surname}\n${user.group}`
         );
 
         return showSubjects(id);
     }
 });
 
-// ===== FANLARNI KO‘RSATISH =====
+// ===== FANLAR =====
 function showSubjects(id) {
     const buttons = Object.keys(subjects).map(key => {
         const paid = users[id].paidSubjects[key];
-
         return [{
             text: `${paid ? "🔓" : "🔒"} ${subjects[key].name}`,
             callback_data: `subject_${key}`
@@ -92,9 +80,7 @@ function showSubjects(id) {
     });
 
     bot.sendMessage(id, "Fan tanlang:", {
-        reply_markup: {
-            inline_keyboard: buttons
-        }
+        reply_markup: { inline_keyboard: buttons }
     });
 }
 
@@ -103,66 +89,99 @@ bot.on("callback_query", (q) => {
     const id = q.message.chat.id;
     const data = q.data;
 
-    // ===== FAN BOSILDI =====
+    // FAN
     if (data.startsWith("subject_")) {
         const key = data.split("_")[1];
 
         if (users[id].paidSubjects[key]) {
-            return bot.sendMessage(
-                id,
-                `📚 Testga kirish:\n${subjects[key].link}`
-            );
-        } else {
-            return bot.sendMessage(
-                id,
-                `💳 ${subjects[key].name}\nNarxi: 15 000 so‘m\n\nTo‘lov turini tanlang:`,
-                {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [
-                                { text: "💰 Click", callback_data: `pay_click_${key}` },
-                                { text: "💳 Payme", callback_data: `pay_payme_${key}` }
-                            ],
-                            [
-                                { text: "✅ To‘lov qildim", callback_data: `check_${key}` }
-                            ]
-                        ]
-                    }
-                }
-            );
+            return bot.sendMessage(id, subjects[key].link);
         }
-    }
 
-    // ===== CLICK =====
-    if (data.startsWith("pay_click_")) {
-        const key = data.split("_")[2];
+        return bot.sendMessage(id,
+            `💳 ${subjects[key].name}
+Narxi: 15 000 so‘m
 
-        return bot.sendMessage(
-            id,
-            `👉 Click orqali to‘lov:\n\nhttps://my.click.uz/pay?id=12345\n\nTo‘lovdan keyin "To‘lov qildim" ni bosing`
+👉 Kartaga o‘tkazing:
+9860160633231537
+
+Ism: Safarboyev Umrbek`,
+            {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "✅ To‘lov qildim", callback_data: `check_${key}` }]
+                    ]
+                }
+            }
         );
     }
 
-    // ===== PAYME =====
-    if (data.startsWith("pay_payme_")) {
-        const key = data.split("_")[2];
-
-        return bot.sendMessage(
-            id,
-            `👉 Payme orqali to‘lov:\n\nhttps://payme.uz/pay?id=12345\n\nTo‘lovdan keyin "To‘lov qildim" ni bosing`
-        );
-    }
-
-    // ===== TEKSHIRISH =====
+    // TO‘LOV QILDIM
     if (data.startsWith("check_")) {
         const key = data.split("_")[1];
 
-        users[id].paidSubjects[key] = true;
+        // oldini olish
+        if (users[id].pending) {
+            return bot.sendMessage(id, "⏳ Oldingi to‘lov tekshirilmoqda");
+        }
 
-        bot.sendMessage(id, "✅ To‘lov tasdiqlandi!");
+        users[id].pending = key;
 
-        return showSubjects(id);
+        const time = new Date().toLocaleString();
+
+        payments.push({
+            userId: id,
+            subject: key,
+            time: time
+        });
+
+        bot.sendMessage(id, "⏳ Tekshirilmoqda...");
+
+        // ADMIN GA XABAR
+        bot.sendMessage(ADMIN_ID,
+            `💰 Yangi to‘lov:
+
+👤 ${users[id].name} ${users[id].surname}
+🏫 ${users[id].group}
+📚 ${subjects[key].name}
+🕒 ${time}
+
+Tasdiqlash:
+/confirm ${id} ${key}`
+        );
     }
+});
+
+// ===== ADMIN TASDIQLASH =====
+bot.onText(/\/confirm (\d+) (.+)/, (msg, match) => {
+    if (msg.chat.id != ADMIN_ID) return;
+
+    const userId = match[1];
+    const subject = match[2];
+
+    if (!users[userId]) return;
+
+    users[userId].paidSubjects[subject] = true;
+    users[userId].pending = null;
+
+    bot.sendMessage(userId, "✅ To‘lov tasdiqlandi!");
+    showSubjects(userId);
+});
+
+// ===== LOG KO‘RISH =====
+bot.onText(/\/payments/, (msg) => {
+    if (msg.chat.id != ADMIN_ID) return;
+
+    if (payments.length === 0) {
+        return bot.sendMessage(msg.chat.id, "Bo‘sh");
+    }
+
+    let text = "📋 To‘lovlar:\n\n";
+
+    payments.slice(-10).forEach(p => {
+        text += `${p.userId} - ${subjects[p.subject].name} - ${p.time}\n`;
+    });
+
+    bot.sendMessage(msg.chat.id, text);
 });
 
 console.log("Bot started...");
