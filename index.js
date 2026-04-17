@@ -4,7 +4,7 @@ const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
 
 // 🔴 O‘ZINGNI ID QO‘Y
-const ADMIN_ID = elmuradovic_1;
+const ADMIN_ID =1755754970;
 
 // ===== USERS =====
 let users = {};
