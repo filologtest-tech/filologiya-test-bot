@@ -98,11 +98,12 @@ function showSubjects(id) {
     });
 }
 
-// ===== FAN BOSILGANDA =====
+// ===== CALLBACK =====
 bot.on("callback_query", (q) => {
     const id = q.message.chat.id;
     const data = q.data;
 
+    // ===== FAN BOSILDI =====
     if (data.startsWith("subject_")) {
         const key = data.split("_")[1];
 
@@ -112,23 +113,55 @@ bot.on("callback_query", (q) => {
                 `📚 Testga kirish:\n${subjects[key].link}`
             );
         } else {
-            return bot.sendMessage(id,
-    `💳 ${subjects[key].name}\nNarxi: 15 000 so‘m\n\nTo‘lov turini tanlang:`,
-    {
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: "💰 Click", callback_data: `pay_click_${key}` },
-                    { text: "💳 Payme", callback_data: `pay_payme_${key}` }
-                ],
-                [
-                    { text: "✅ To‘lov qildim", callback_data: `check_${key}` }
-                ]
-            ]
+            return bot.sendMessage(
+                id,
+                `💳 ${subjects[key].name}\nNarxi: 15 000 so‘m\n\nTo‘lov turini tanlang:`,
+                {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: "💰 Click", callback_data: `pay_click_${key}` },
+                                { text: "💳 Payme", callback_data: `pay_payme_${key}` }
+                            ],
+                            [
+                                { text: "✅ To‘lov qildim", callback_data: `check_${key}` }
+                            ]
+                        ]
+                    }
+                }
+            );
         }
     }
-);
-        }
+
+    // ===== CLICK =====
+    if (data.startsWith("pay_click_")) {
+        const key = data.split("_")[2];
+
+        return bot.sendMessage(
+            id,
+            `👉 Click orqali to‘lov:\n\nhttps://my.click.uz/pay?id=12345\n\nTo‘lovdan keyin "To‘lov qildim" ni bosing`
+        );
+    }
+
+    // ===== PAYME =====
+    if (data.startsWith("pay_payme_")) {
+        const key = data.split("_")[2];
+
+        return bot.sendMessage(
+            id,
+            `👉 Payme orqali to‘lov:\n\nhttps://payme.uz/pay?id=12345\n\nTo‘lovdan keyin "To‘lov qildim" ni bosing`
+        );
+    }
+
+    // ===== TEKSHIRISH =====
+    if (data.startsWith("check_")) {
+        const key = data.split("_")[1];
+
+        users[id].paidSubjects[key] = true;
+
+        bot.sendMessage(id, "✅ To‘lov tasdiqlandi!");
+
+        return showSubjects(id);
     }
 });
 
