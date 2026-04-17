@@ -1,10 +1,13 @@
 {
-  "name": "telegram-bot",
+  "name": "filologiya-test-bot",
   "version": "1.0.0",
+  "description": "Telegram test bot with payments",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "node-telegram-bot-api": "^0.61.0",
     "express": "^4.18.2"
