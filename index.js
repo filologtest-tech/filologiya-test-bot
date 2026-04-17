@@ -112,10 +112,22 @@ bot.on("callback_query", (q) => {
                 `📚 Testga kirish:\n${subjects[key].link}`
             );
         } else {
-            return bot.sendMessage(
-                id,
-                "❌ Bu fan uchun to‘lov qilinmagan.\n\n(To‘lov tizimi keyingi bosqichda qo‘shiladi)"
-            );
+            return bot.sendMessage(id,
+    `💳 ${subjects[key].name}\nNarxi: 15 000 so‘m\n\nTo‘lov turini tanlang:`,
+    {
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: "💰 Click", callback_data: `pay_click_${key}` },
+                    { text: "💳 Payme", callback_data: `pay_payme_${key}` }
+                ],
+                [
+                    { text: "✅ To‘lov qildim", callback_data: `check_${key}` }
+                ]
+            ]
+        }
+    }
+);
         }
     }
 });
