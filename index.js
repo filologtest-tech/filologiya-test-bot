@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
     surname: String,
     group: String,
     step: String,
-    paidSubjects: { type: Map, of: Boolean, default: {} },
+    paidSubjects: { type: Object, default: {} },
     paidHistory: { type: Array, default: [] },
     pending: String,
     actionToken: String
@@ -44,13 +44,11 @@ bot.onText(/\/start/, async (msg) => {
 
     let user = await User.findOne({ userId: id });
 
-    if (!user) {
-        user = new User({ userId: id, step: "name" });
-    } else {
-        user.step = "name";
-    }
+    if (!user) user = new User({ userId: id });
 
+    user.step = "name";
     await user.save();
+
     bot.sendMessage(id, "Ismingizni kiriting:");
 });
 
@@ -85,22 +83,22 @@ bot.on("message", async (msg) => {
         user.step = "done";
         await user.save();
 
-        bot.sendMessage(id, `✅ ${user.name} ${user.surname}\n${user.group}`);
-        return showSubjects(id, user);
+        return showSubjects(id);
     }
 });
 
 // ===== FANLAR =====
-function showSubjects(id, user) {
+async function showSubjects(id) {
+    const user = await User.findOne({ userId: id });
+
     const buttons = Object.keys(subjects).map(key => {
-        const paid = user.paidSubjects.get(key);
+        const paid = user.paidSubjects[key] === true;
         return [{
             text: `${paid ? "🔓" : "🔒"} ${subjects[key].name}`,
             callback_data: `subject|${key}`
         }];
     });
 
-    // Qo‘shimcha tugma
     buttons.push([{ text: "📚 Mening fanlarim", callback_data: "my_subjects" }]);
 
     bot.sendMessage(id, "Fan tanlang:", {
@@ -117,14 +115,16 @@ bot.on("callback_query", async (q) => {
 
     // ===== USER FANLARI =====
     if (data === "my_subjects") {
-        if (!user || user.paidSubjects.size === 0) {
+        if (!user || Object.keys(user.paidSubjects).length === 0) {
             return bot.sendMessage(id, "❌ Siz hali hech narsa sotib olmadingiz");
         }
 
         let text = "📚 Sizning fanlaringiz:\n\n";
 
-        user.paidSubjects.forEach((val, key) => {
-            if (val) text += `🔓 ${subjects[key].name}\n`;
+        Object.keys(user.paidSubjects).forEach(k => {
+            if (user.paidSubjects[k]) {
+                text += `🔓 ${subjects[k].name}\n`;
+            }
         });
 
         return bot.sendMessage(id, text);
@@ -134,7 +134,7 @@ bot.on("callback_query", async (q) => {
     if (data.startsWith("subject|")) {
         const key = data.split("|")[1];
 
-        if (user.paidSubjects.get(key)) {
+        if (user.paidSubjects[key] === true) {
             return bot.sendMessage(id, subjects[key].link);
         }
 
@@ -167,7 +167,7 @@ ${OWNER}`,
         return bot.sendMessage(id, "📸 Screenshot yuboring:");
     }
 
-    // ===== ADMIN CONFIRM =====
+    // ===== CONFIRM =====
     if (data.startsWith("confirm|")) {
         if (id !== ADMIN_ID) return;
 
@@ -179,30 +179,37 @@ ${OWNER}`,
             return bot.answerCallbackQuery(q.id, { text: "Allaqachon bajarilgan" });
         }
 
-        u.paidSubjects.set(subject, true);
+        if (!u.paidSubjects) u.paidSubjects = {};
+
+        u.paidSubjects[subject] = true;
+        u.pending = null;
+        u.actionToken = null;
+
+        // 🔴 MUHIM
+        u.markModified("paidSubjects");
 
         u.paidHistory.push({
             subject,
             time: new Date().toLocaleString()
         });
 
-        u.pending = null;
-        u.actionToken = null;
         await u.save();
 
         await bot.sendMessage(userId, "✅ To‘lov tasdiqlandi!");
-        showSubjects(userId, u);
+        await showSubjects(userId);
 
-        await bot.editMessageCaption(q.message.caption + "\n\n✅ TASDIQLANDI", {
-            chat_id: q.message.chat.id,
-            message_id: q.message.message_id,
-            reply_markup: { inline_keyboard: [] }
-        });
+        await bot.editMessageReplyMarkup(
+            { inline_keyboard: [] },
+            {
+                chat_id: q.message.chat.id,
+                message_id: q.message.message_id
+            }
+        );
 
         return bot.answerCallbackQuery(q.id);
     }
 
-    // ===== ADMIN REJECT =====
+    // ===== REJECT =====
     if (data.startsWith("reject|")) {
         if (id !== ADMIN_ID) return;
 
@@ -211,7 +218,7 @@ ${OWNER}`,
         const u = await User.findOne({ userId });
 
         if (!u || u.actionToken !== token) {
-            return bot.answerCallbackQuery(q.id, { text: "Allaqachon bajarilgan" });
+            return bot.answerCallbackQuery(q.id);
         }
 
         u.pending = null;
@@ -219,12 +226,6 @@ ${OWNER}`,
         await u.save();
 
         await bot.sendMessage(userId, "❌ To‘lov rad etildi");
-
-        await bot.editMessageCaption(q.message.caption + "\n\n❌ RAD ETILDI", {
-            chat_id: q.message.chat.id,
-            message_id: q.message.message_id,
-            reply_markup: { inline_keyboard: [] }
-        });
 
         return bot.answerCallbackQuery(q.id);
     }
@@ -241,7 +242,7 @@ ${OWNER}`,
         return bot.sendMessage(id,
 `📊 Statistika
 
-👥 Foydalanuvchilar: ${users.length}
+👥 Users: ${users.length}
 💰 Sotuvlar: ${total}`);
     }
 
@@ -250,9 +251,9 @@ ${OWNER}`,
 
         const users = await User.find().limit(10);
 
-        let text = "👥 Foydalanuvchilar:\n\n";
+        let text = "👥 Users:\n\n";
         users.forEach(u => {
-            text += `${u.name} ${u.surname} (${u.group})\n`;
+            text += `${u.name} ${u.surname}\n`;
         });
 
         return bot.sendMessage(id, text);
@@ -276,8 +277,7 @@ bot.on("photo", async (msg) => {
     await bot.sendPhoto(ADMIN_ID, photo, {
         caption:
 `💰 Yangi to‘lov
-
-👤 ${user.name} ${user.surname}
+👤 ${user.name}
 📚 ${subjects[key].name}`,
         reply_markup: {
             inline_keyboard: [
@@ -292,7 +292,7 @@ bot.on("photo", async (msg) => {
     bot.sendMessage(id, "⏳ Tekshirilmoqda...");
 });
 
-// ===== ADMIN MENU =====
+// ===== ADMIN =====
 bot.onText(/\/admin/, (msg) => {
     if (msg.chat.id !== ADMIN_ID) return;
 
@@ -300,7 +300,7 @@ bot.onText(/\/admin/, (msg) => {
         reply_markup: {
             inline_keyboard: [
                 [{ text: "📊 Statistika", callback_data: "admin_stats" }],
-                [{ text: "👥 Foydalanuvchilar", callback_data: "admin_users" }]
+                [{ text: "👥 Users", callback_data: "admin_users" }]
             ]
         }
     });
