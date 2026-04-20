@@ -14,14 +14,17 @@ mongoose.connect(process.env.MONGO_URI)
 .catch(err => console.log("Mongo error:", err));
 
 // ===== MODEL =====
-const User = mongoose.model("User", {
+const userSchema = new mongoose.Schema({
     userId: Number,
     name: String,
     surname: String,
     group: String,
+    step: String,
     paidSubjects: Object,
     pending: String
 });
+
+const User = mongoose.model("User", userSchema);
 
 // ===== FANLAR =====
 const subjects = {
@@ -44,39 +47,44 @@ bot.onText(/\/start/, async (msg) => {
             name: "",
             surname: "",
             group: "",
+            step: "name",
             paidSubjects: {},
             pending: null
         });
-        await user.save();
+    } else {
+        user.step = "name";
     }
 
-    user.step = "name";
     await user.save();
 
     bot.sendMessage(id, "Ismingizni kiriting:");
 });
 
-// ===== TEXT =====
+// ===== TEXT HANDLER =====
 bot.on("message", async (msg) => {
+    if (!msg.text) return; // 🔴 muhim
+
     const id = msg.chat.id;
-    const text = msg.text;
+    const text = msg.text.trim();
+
+    if (text === "/start") return;
 
     const user = await User.findOne({ userId: id });
     if (!user) return;
-    if (text === "/start") return;
 
+    // ===== STEP LOGIKA =====
     if (user.step === "name") {
         user.name = text;
         user.step = "surname";
         await user.save();
-        return bot.sendMessage(id, "Familiya:");
+        return bot.sendMessage(id, "Familiyangizni kiriting:");
     }
 
     if (user.step === "surname") {
         user.surname = text;
         user.step = "group";
         await user.save();
-        return bot.sendMessage(id, "Guruh:");
+        return bot.sendMessage(id, "Guruhingizni kiriting:");
     }
 
     if (user.step === "group") {
@@ -84,7 +92,7 @@ bot.on("message", async (msg) => {
         user.step = "done";
         await user.save();
 
-        bot.sendMessage(id, `✅ ${user.name} ${user.surname}\n${user.group}`);
+        bot.sendMessage(id, `✅ ${user.name} ${user.surname}\n📚 ${user.group}`);
         return showSubjects(id, user);
     }
 });
@@ -137,7 +145,7 @@ ${CARD}
         });
     }
 
-    // ===== TO‘LOV QILDIM =====
+    // ===== TO‘LOV =====
     if (data.startsWith("check_")) {
         const key = data.split("_")[1];
 
@@ -148,16 +156,14 @@ ${CARD}
         user.pending = key;
         await user.save();
 
-        bot.sendMessage(id, "📸 Screenshot yuboring:");
+        return bot.sendMessage(id, "📸 Screenshot yuboring:");
     }
 
-    // ===== ADMIN TASDIQLASH =====
+    // ===== TASDIQLASH =====
     if (data.startsWith("confirm_")) {
         if (id != ADMIN_ID) return;
 
-        const parts = data.split("_");
-        const userId = Number(parts[1]);
-        const subject = parts[2];
+        const [_, userId, subject] = data.split("_");
 
         const u = await User.findOne({ userId });
         if (!u) return;
@@ -169,15 +175,14 @@ ${CARD}
         bot.sendMessage(userId, "✅ To‘lov tasdiqlandi!");
         showSubjects(userId, u);
 
-        bot.answerCallbackQuery(q.id, { text: "Tasdiqlandi ✅" });
+        return bot.answerCallbackQuery(q.id, { text: "Tasdiqlandi ✅" });
     }
 
-    // ===== ADMIN RAD =====
+    // ===== RAD =====
     if (data.startsWith("reject_")) {
         if (id != ADMIN_ID) return;
 
-        const parts = data.split("_");
-        const userId = Number(parts[1]);
+        const [_, userId] = data.split("_");
 
         const u = await User.findOne({ userId });
         if (!u) return;
@@ -187,7 +192,7 @@ ${CARD}
 
         bot.sendMessage(userId, "❌ To‘lov rad etildi");
 
-        bot.answerCallbackQuery(q.id, { text: "Rad etildi ❌" });
+        return bot.answerCallbackQuery(q.id, { text: "Rad etildi ❌" });
     }
 });
 
@@ -203,8 +208,7 @@ bot.on("photo", async (msg) => {
 
     const time = new Date().toLocaleString();
 
-    // ===== ADMIN GA YUBORISH =====
-    bot.sendPhoto(ADMIN_ID, photo, {
+    await bot.sendPhoto(ADMIN_ID, photo, {
         caption:
 `💰 Yangi to‘lov:
 
@@ -224,5 +228,8 @@ bot.on("photo", async (msg) => {
 
     bot.sendMessage(id, "⏳ Tekshirilmoqda...");
 });
+
+// ===== ERROR LOG =====
+bot.on("polling_error", console.log);
 
 console.log("Bot started...");
