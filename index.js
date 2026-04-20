@@ -9,10 +9,10 @@ const ADMIN_ID = 1755754970;
 const CARD = "9860160633231537";
 const OWNER = "Safarboyev Umrbek";
 
-// ===== MONGO =====
+// ===== DB =====
 mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log("MongoDB ulandi"))
-.catch(err => console.log("Mongo error:", err));
+.catch(err => console.log(err));
 
 // ===== MODEL =====
 const userSchema = new mongoose.Schema({
@@ -21,7 +21,8 @@ const userSchema = new mongoose.Schema({
     surname: String,
     group: String,
     step: String,
-    paidSubjects: { type: Object, default: {} },
+    paidSubjects: { type: Map, of: Boolean, default: {} },
+    paidHistory: { type: Array, default: [] },
     pending: String,
     actionToken: String
 });
@@ -92,12 +93,15 @@ bot.on("message", async (msg) => {
 // ===== FANLAR =====
 function showSubjects(id, user) {
     const buttons = Object.keys(subjects).map(key => {
-        const paid = user.paidSubjects[key];
+        const paid = user.paidSubjects.get(key);
         return [{
             text: `${paid ? "🔓" : "🔒"} ${subjects[key].name}`,
-            callback_data: `subject|${key}` // 🔥 xavfsiz format
+            callback_data: `subject|${key}`
         }];
     });
+
+    // Qo‘shimcha tugma
+    buttons.push([{ text: "📚 Mening fanlarim", callback_data: "my_subjects" }]);
 
     bot.sendMessage(id, "Fan tanlang:", {
         reply_markup: { inline_keyboard: buttons }
@@ -107,61 +111,34 @@ function showSubjects(id, user) {
 // ===== CALLBACK =====
 bot.on("callback_query", async (q) => {
     const data = q.data;
-    const fromId = q.from.id;
+    const id = q.from.id;
 
-    // ===== ADMIN PANEL =====
-    if (data === "admin_menu") {
-        if (fromId !== ADMIN_ID) return;
+    const user = await User.findOne({ userId: id });
 
-        return bot.editMessageText("📊 Admin panel:", {
-            chat_id: q.message.chat.id,
-            message_id: q.message.message_id,
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: "📋 To‘lovlar", callback_data: "admin_payments" }],
-                    [{ text: "👥 Foydalanuvchilar", callback_data: "admin_users" }]
-                ]
-            }
-        });
-    }
+    // ===== USER FANLARI =====
+    if (data === "my_subjects") {
+        if (!user || user.paidSubjects.size === 0) {
+            return bot.sendMessage(id, "❌ Siz hali hech narsa sotib olmadingiz");
+        }
 
-    if (data === "admin_payments") {
-        if (fromId !== ADMIN_ID) return;
+        let text = "📚 Sizning fanlaringiz:\n\n";
 
-        const users = await User.find({}).limit(10).sort({ _id: -1 });
-
-        let text = "📋 So‘nggi foydalanuvchilar:\n\n";
-        users.forEach(u => {
-            text += `${u.name} ${u.surname} (${u.group})\n`;
+        user.paidSubjects.forEach((val, key) => {
+            if (val) text += `🔓 ${subjects[key].name}\n`;
         });
 
-        return bot.sendMessage(q.message.chat.id, text);
-    }
-
-    if (data === "admin_users") {
-        if (fromId !== ADMIN_ID) return;
-
-        const users = await User.find().limit(10);
-
-        let text = "👥 Foydalanuvchilar:\n\n";
-        users.forEach(u => {
-            text += `${u.name} ${u.surname}\n`;
-        });
-
-        return bot.sendMessage(q.message.chat.id, text);
+        return bot.sendMessage(id, text);
     }
 
     // ===== FAN =====
     if (data.startsWith("subject|")) {
         const key = data.split("|")[1];
 
-        const user = await User.findOne({ userId: q.from.id });
-
-        if (user.paidSubjects[key]) {
-            return bot.sendMessage(q.from.id, subjects[key].link);
+        if (user.paidSubjects.get(key)) {
+            return bot.sendMessage(id, subjects[key].link);
         }
 
-        return bot.sendMessage(q.from.id,
+        return bot.sendMessage(id,
 `💳 ${subjects[key].name}
 Narxi: 15 000 so‘m
 
@@ -179,7 +156,6 @@ ${OWNER}`,
     // ===== CHECK =====
     if (data.startsWith("check|")) {
         const key = data.split("|")[1];
-        const user = await User.findOne({ userId: q.from.id });
 
         if (user.pending) {
             return bot.answerCallbackQuery(q.id, { text: "Kutilyapti..." });
@@ -188,27 +164,34 @@ ${OWNER}`,
         user.pending = key;
         await user.save();
 
-        return bot.sendMessage(q.from.id, "📸 Screenshot yuboring:");
+        return bot.sendMessage(id, "📸 Screenshot yuboring:");
     }
 
-    // ===== CONFIRM =====
+    // ===== ADMIN CONFIRM =====
     if (data.startsWith("confirm|")) {
-        if (fromId !== ADMIN_ID) return;
+        if (id !== ADMIN_ID) return;
 
         const [_, userId, subject, token] = data.split("|");
 
-        const user = await User.findOne({ userId });
-        if (!user || user.actionToken !== token) {
+        const u = await User.findOne({ userId });
+
+        if (!u || u.actionToken !== token) {
             return bot.answerCallbackQuery(q.id, { text: "Allaqachon bajarilgan" });
         }
 
-        user.paidSubjects[subject] = true;
-        user.pending = null;
-        user.actionToken = null;
-        await user.save();
+        u.paidSubjects.set(subject, true);
+
+        u.paidHistory.push({
+            subject,
+            time: new Date().toLocaleString()
+        });
+
+        u.pending = null;
+        u.actionToken = null;
+        await u.save();
 
         await bot.sendMessage(userId, "✅ To‘lov tasdiqlandi!");
-        showSubjects(userId, user);
+        showSubjects(userId, u);
 
         await bot.editMessageCaption(q.message.caption + "\n\n✅ TASDIQLANDI", {
             chat_id: q.message.chat.id,
@@ -219,20 +202,21 @@ ${OWNER}`,
         return bot.answerCallbackQuery(q.id);
     }
 
-    // ===== REJECT =====
+    // ===== ADMIN REJECT =====
     if (data.startsWith("reject|")) {
-        if (fromId !== ADMIN_ID) return;
+        if (id !== ADMIN_ID) return;
 
         const [_, userId, subject, token] = data.split("|");
 
-        const user = await User.findOne({ userId });
-        if (!user || user.actionToken !== token) {
+        const u = await User.findOne({ userId });
+
+        if (!u || u.actionToken !== token) {
             return bot.answerCallbackQuery(q.id, { text: "Allaqachon bajarilgan" });
         }
 
-        user.pending = null;
-        user.actionToken = null;
-        await user.save();
+        u.pending = null;
+        u.actionToken = null;
+        await u.save();
 
         await bot.sendMessage(userId, "❌ To‘lov rad etildi");
 
@@ -243,6 +227,35 @@ ${OWNER}`,
         });
 
         return bot.answerCallbackQuery(q.id);
+    }
+
+    // ===== ADMIN STATS =====
+    if (data === "admin_stats") {
+        if (id !== ADMIN_ID) return;
+
+        const users = await User.find();
+
+        let total = 0;
+        users.forEach(u => total += u.paidHistory.length);
+
+        return bot.sendMessage(id,
+`📊 Statistika
+
+👥 Foydalanuvchilar: ${users.length}
+💰 Sotuvlar: ${total}`);
+    }
+
+    if (data === "admin_users") {
+        if (id !== ADMIN_ID) return;
+
+        const users = await User.find().limit(10);
+
+        let text = "👥 Foydalanuvchilar:\n\n";
+        users.forEach(u => {
+            text += `${u.name} ${u.surname} (${u.group})\n`;
+        });
+
+        return bot.sendMessage(id, text);
     }
 });
 
@@ -279,14 +292,15 @@ bot.on("photo", async (msg) => {
     bot.sendMessage(id, "⏳ Tekshirilmoqda...");
 });
 
-// ===== ADMIN =====
+// ===== ADMIN MENU =====
 bot.onText(/\/admin/, (msg) => {
     if (msg.chat.id !== ADMIN_ID) return;
 
     bot.sendMessage(msg.chat.id, "Admin panel", {
         reply_markup: {
             inline_keyboard: [
-                [{ text: "📊 Ochish", callback_data: "admin_menu" }]
+                [{ text: "📊 Statistika", callback_data: "admin_stats" }],
+                [{ text: "👥 Foydalanuvchilar", callback_data: "admin_users" }]
             ]
         }
     });
