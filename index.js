@@ -56,13 +56,12 @@ bot.onText(/\/start/, async (msg) => {
     }
 
     await user.save();
-
     bot.sendMessage(id, "Ismingizni kiriting:");
 });
 
-// ===== TEXT HANDLER =====
+// ===== TEXT =====
 bot.on("message", async (msg) => {
-    if (!msg.text) return; // 🔴 muhim
+    if (!msg.text) return;
 
     const id = msg.chat.id;
     const text = msg.text.trim();
@@ -72,19 +71,18 @@ bot.on("message", async (msg) => {
     const user = await User.findOne({ userId: id });
     if (!user) return;
 
-    // ===== STEP LOGIKA =====
     if (user.step === "name") {
         user.name = text;
         user.step = "surname";
         await user.save();
-        return bot.sendMessage(id, "Familiyangizni kiriting:");
+        return bot.sendMessage(id, "Familiya:");
     }
 
     if (user.step === "surname") {
         user.surname = text;
         user.step = "group";
         await user.save();
-        return bot.sendMessage(id, "Guruhingizni kiriting:");
+        return bot.sendMessage(id, "Guruh:");
     }
 
     if (user.step === "group") {
@@ -92,7 +90,7 @@ bot.on("message", async (msg) => {
         user.step = "done";
         await user.save();
 
-        bot.sendMessage(id, `✅ ${user.name} ${user.surname}\n📚 ${user.group}`);
+        bot.sendMessage(id, `✅ ${user.name} ${user.surname}\n${user.group}`);
         return showSubjects(id, user);
     }
 });
@@ -122,7 +120,7 @@ bot.on("callback_query", async (q) => {
 
     // ===== FAN =====
     if (data.startsWith("subject_")) {
-        const key = data.split("_")[1];
+        const key = data.replace("subject_", ""); // ✅ FIX
 
         if (user.paidSubjects?.[key]) {
             return bot.sendMessage(id, subjects[key].link);
@@ -147,7 +145,7 @@ ${CARD}
 
     // ===== TO‘LOV =====
     if (data.startsWith("check_")) {
-        const key = data.split("_")[1];
+        const key = data.replace("check_", ""); // ✅ FIX
 
         if (user.pending) {
             return bot.sendMessage(id, "⏳ Oldingi to‘lov tekshirilmoqda");
@@ -163,7 +161,9 @@ ${CARD}
     if (data.startsWith("confirm_")) {
         if (id != ADMIN_ID) return;
 
-        const [_, userId, subject] = data.split("_");
+        const parts = data.split("_");
+        const userId = parts[1];
+        const subject = parts.slice(2).join("_"); // ✅ FIX
 
         const u = await User.findOne({ userId });
         if (!u) return;
@@ -182,7 +182,8 @@ ${CARD}
     if (data.startsWith("reject_")) {
         if (id != ADMIN_ID) return;
 
-        const [_, userId] = data.split("_");
+        const parts = data.split("_");
+        const userId = parts[1];
 
         const u = await User.findOne({ userId });
         if (!u) return;
@@ -229,7 +230,6 @@ bot.on("photo", async (msg) => {
     bot.sendMessage(id, "⏳ Tekshirilmoqda...");
 });
 
-// ===== ERROR LOG =====
 bot.on("polling_error", console.log);
 
 console.log("Bot started...");
