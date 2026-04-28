@@ -6,7 +6,8 @@ const path = require('path');
 
 // ===== WEB SERVER (EXPRESS) SOZLAMALARI =====
 const app = express();
-app.use(express.static(path.join(__dirname, 'public')));
+// HTML fayllar to'g'ridan-to'g'ri asosiy papkadan o'qilishi uchun:
+app.use(express.static(__dirname));
 
 const SERVER_URL = process.env.WEB_APP_URL || "https://sizning-domeningiz.com";
 
@@ -58,7 +59,8 @@ app.get('/test', async (req, res) => {
             return res.status(404).send("Xato: Bunday fan tizimda topilmadi.");
         }
 
-        res.sendFile(path.join(__dirname, 'public', targetFile));
+        // public papkasi o'rniga to'g'ridan-to'g'ri faylni chaqiramiz
+        res.sendFile(path.join(__dirname, targetFile));
         
     } catch (err) {
         res.status(500).send("Serverda xatolik yuz berdi.");
@@ -129,7 +131,8 @@ async function showSubjects(id) {
     const buttons = Object.keys(subjects).map(key => {
         const paid = user.paidSubjects[key] === true;
         return [{
-            text: `${paid ? "🔓" : "🔒"} ${subjects[key].name}`,
+            // Qulfni faqat sotib olinmagan fanlarda ko'rsatamiz
+            text: `${paid ? "" : "🔒 "}${subjects[key].name}`,
             callback_data: `subject|${key}`
         }];
     });
@@ -151,7 +154,7 @@ bot.on("callback_query", async (q) => {
         }
         let text = "📚 Sizning ruxsat berilgan fanlaringiz:\n\n";
         Object.keys(user.paidSubjects).forEach(k => {
-            if (user.paidSubjects[k]) text += `🔓 ${subjects[k].name}\n`;
+            if (user.paidSubjects[k]) text += `✅ ${subjects[k].name}\n`;
         });
         text += "\nTestni boshlash uchun asosiy menyudan fanni tanlang.";
         return bot.sendMessage(id, text);
