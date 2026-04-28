@@ -7,15 +7,14 @@ const path = require('path');
 const app = express();
 app.use(express.static(__dirname));
 
-// Havolani tekshirib olish funksiyasi
+// Havolani tozalash funksiyasi
 const getBaseUrl = () => {
     let url = process.env.WEB_APP_URL || "";
-    if (url && !url.startsWith('http')) url = 'https://' + url;
-    if (url.endsWith('/')) url = url.slice(0, -1);
-    return url;
+    if (!url.startsWith('http')) url = 'https://' + url;
+    return url.replace(/\/$/, ""); // Oxiridagi slashni olib tashlaydi
 };
 
-mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ DB ulandi")).catch(e => console.log("❌ DB xatosi:", e));
+mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ DB ulandi"));
 
 const userSchema = new mongoose.Schema({
     userId: Number, name: String, surname: String, group: String, step: String,
@@ -52,7 +51,7 @@ bot.onText(/\/start/, async (msg) => {
     if (!user) user = new User({ userId: id, paidSubjects: {} });
     user.step = "name";
     await user.save();
-    bot.sendMessage(id, "Ismingizni kiriting:");
+    bot.sendMessage(id, "Xush kelibsiz! Ismingizni kiriting:");
 });
 
 bot.on("message", async (msg) => {
@@ -67,14 +66,13 @@ bot.on("message", async (msg) => {
 });
 
 async function showSubjects(id) {
-    try {
-        const user = await User.findOne({ userId: id });
-        const buttons = Object.keys(subjects).map(key => {
-            const isPaid = user.paidSubjects && user.paidSubjects[key] === true;
-            return [{ text: `${isPaid ? "✅" : "🔒"} ${subjects[key].name}`, callback_data: `sub|${key}` }];
-        });
-        await bot.sendMessage(id, "Fan tanlang:", { reply_markup: { inline_keyboard: buttons } });
-    } catch (e) { console.log("Menyu yuborishda xato:", e.message); }
+    const user = await User.findOne({ userId: id });
+    const buttons = Object.keys(subjects).map(key => {
+        // Galochka mantiqi:
+        const isPaid = user.paidSubjects && user.paidSubjects[key] === true;
+        return [{ text: `${isPaid ? "✅" : "🔒"} ${subjects[key].name}`, callback_data: `sub|${key}` }];
+    });
+    bot.sendMessage(id, "Fan tanlang:", { reply_markup: { inline_keyboard: buttons } });
 }
 
 bot.on("callback_query", async (q) => {
@@ -83,15 +81,16 @@ bot.on("callback_query", async (q) => {
     bot.answerCallbackQuery(q.id).catch(() => {});
 
     const user = await User.findOne({ userId: id });
-    if (!user) return;
 
     if (data.startsWith("sub|")) {
         const key = data.split("|")[1];
         if (user.paidSubjects && user.paidSubjects[key]) {
             const url = `${getBaseUrl()}/test?userId=${id}&subject=${key}`;
-            return bot.sendMessage(id, `🔓 Ochiq: ${subjects[key].name}`, {
+            return bot.sendMessage(id, `🔓 ${subjects[key].name} fani ochiq. Testni boshlang:`, {
                 reply_markup: { inline_keyboard: [[{ text: "▶️ Testni boshlash", web_app: { url } }]] }
-            }).catch(e => bot.sendMessage(id, "Xato: Havola noto'g'ri sozlangan. Admin bilan bog'laning."));
+            }).catch(e => {
+                bot.sendMessage(id, "❌ Xatolik: Havola noto'g'ri. Railway'da WEB_APP_URL boshiga https:// qo'shing.");
+            });
         }
         return bot.sendMessage(id, `💳 To'lov: 15.000 so'm\n${CARD}\n${OWNER}`, {
             reply_markup: { inline_keyboard: [[{ text: "✅ To'lov qildim", callback_data: `chk|${key}` }]] }
@@ -116,8 +115,9 @@ bot.on("callback_query", async (q) => {
             target.markModified("paidSubjects");
             target.pending = null; target.actionToken = null;
             await target.save();
-            await bot.sendMessage(uId, `✅ ${subjects[sub].name} ochildi!`);
-            showSubjects(uId);
+            
+            await bot.sendMessage(uId, `✅ Tasdiqlandi! ${subjects[sub].name} ochildi.`);
+            showSubjects(uId); // Yangi menyu
         } else {
             target.pending = null; target.actionToken = null;
             await target.save();
