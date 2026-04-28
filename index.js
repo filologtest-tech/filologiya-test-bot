@@ -5,45 +5,36 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
-// Fayllar asosiy papkada bo'lgani uchun:
 app.use(express.static(__dirname));
 
-// Railway Variables'dan havolani olamiz
-const WEB_APP_URL = process.env.WEB_APP_URL;
+// Havolani tekshirib olish funksiyasi
+const getBaseUrl = () => {
+    let url = process.env.WEB_APP_URL || "";
+    if (url && !url.startsWith('http')) url = 'https://' + url;
+    if (url.endsWith('/')) url = url.slice(0, -1);
+    return url;
+};
 
-// ===== DATABASE =====
-mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ MongoDB ulandi"));
+mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ DB ulandi")).catch(e => console.log("❌ DB xatosi:", e));
 
 const userSchema = new mongoose.Schema({
-    userId: Number,
-    name: String,
-    surname: String,
-    group: String,
-    step: String,
+    userId: Number, name: String, surname: String, group: String, step: String,
     paidSubjects: { type: Object, default: {} },
-    actionToken: String,
-    pending: String
+    actionToken: String, pending: String
 });
 const User = mongoose.model("User", userSchema);
 
-// ===== MINI APP SERVING =====
 app.get('/test', async (req, res) => {
     const { userId, subject } = req.query;
-    try {
-        const user = await User.findOne({ userId: Number(userId) });
-        // To'lovni tekshirish
-        if (user && user.paidSubjects && user.paidSubjects[subject] === true) {
-            return res.sendFile(path.join(__dirname, `${subject}.html`));
-        }
-        res.status(403).send("Ruxsat berilmagan. Avval fanni sotib oling.");
-    } catch (e) {
-        res.status(500).send("Server xatosi");
+    const user = await User.findOne({ userId: Number(userId) });
+    if (user && user.paidSubjects && user.paidSubjects[subject]) {
+        return res.sendFile(path.join(__dirname, `${subject}.html`));
     }
+    res.status(403).send("Ruxsat yo'q");
 });
 
-// ===== BOT SETTINGS =====
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
-const ADMIN_ID = 1755754970; // Sizning ID raqamingiz
+const ADMIN_ID = 1755754970; 
 const CARD = "9860160633231537";
 const OWNER = "Safarboyev Umrbek";
 
@@ -55,53 +46,37 @@ const subjects = {
     umumiy: { name: "Umumiy tilshunoslik" }
 };
 
-// ===== COMMANDS =====
 bot.onText(/\/start/, async (msg) => {
     const id = msg.chat.id;
     let user = await User.findOne({ userId: id });
     if (!user) user = new User({ userId: id, paidSubjects: {} });
     user.step = "name";
     await user.save();
-    bot.sendMessage(id, "Assalomu alaykum! Ismingizni kiriting:");
+    bot.sendMessage(id, "Ismingizni kiriting:");
 });
 
 bot.on("message", async (msg) => {
     const id = msg.chat.id;
-    const text = msg.text;
-    if (!text || text.startsWith("/")) return;
+    if (!msg.text || msg.text.startsWith("/")) return;
     const user = await User.findOne({ userId: id });
     if (!user) return;
 
-    if (user.step === "name") {
-        user.name = text; user.step = "surname"; await user.save();
-        return bot.sendMessage(id, "Familiyangizni kiriting:");
-    }
-    if (user.step === "surname") {
-        user.surname = text; user.step = "group"; await user.save();
-        return bot.sendMessage(id, "Guruh raqamingizni kiriting:");
-    }
-    if (user.step === "group") {
-        user.group = text; user.step = "done"; await user.save();
-        bot.sendMessage(id, "Muvaffaqiyatli ro'yxatdan o'tdingiz!");
-        return showSubjects(id);
-    }
+    if (user.step === "name") { user.name = msg.text; user.step = "surname"; await user.save(); return bot.sendMessage(id, "Familiyangiz:"); }
+    if (user.step === "surname") { user.surname = msg.text; user.step = "group"; await user.save(); return bot.sendMessage(id, "Guruh:"); }
+    if (user.step === "group") { user.group = msg.text; user.step = "done"; await user.save(); return showSubjects(id); }
 });
 
-// FANLAR MENYUSI (BELGILAR BILAN)
 async function showSubjects(id) {
-    const user = await User.findOne({ userId: id });
-    const buttons = Object.keys(subjects).map(key => {
-        // paidSubjects obyekt ekanini va ichida fan borligini tekshiramiz
-        const isPaid = user.paidSubjects && user.paidSubjects[key] === true;
-        return [{
-            text: `${isPaid ? "✅" : "🔒"} ${subjects[key].name}`,
-            callback_data: `sub|${key}`
-        }];
-    });
-    bot.sendMessage(id, "Fanni tanlang:", { reply_markup: { inline_keyboard: buttons } });
+    try {
+        const user = await User.findOne({ userId: id });
+        const buttons = Object.keys(subjects).map(key => {
+            const isPaid = user.paidSubjects && user.paidSubjects[key] === true;
+            return [{ text: `${isPaid ? "✅" : "🔒"} ${subjects[key].name}`, callback_data: `sub|${key}` }];
+        });
+        await bot.sendMessage(id, "Fan tanlang:", { reply_markup: { inline_keyboard: buttons } });
+    } catch (e) { console.log("Menyu yuborishda xato:", e.message); }
 }
 
-// ===== CALLBACK HANDLER =====
 bot.on("callback_query", async (q) => {
     const id = q.from.id;
     const data = q.data;
@@ -112,17 +87,13 @@ bot.on("callback_query", async (q) => {
 
     if (data.startsWith("sub|")) {
         const key = data.split("|")[1];
-        // SOTIB OLGAN BO'LSA
-        if (user.paidSubjects && user.paidSubjects[key] === true) {
-            const url = `${WEB_APP_URL}/test?userId=${id}&subject=${key}`;
-            return bot.sendMessage(id, `🔓 ${subjects[key].name} fani ochiq. Testni boshlash uchun bosing:`, {
-                reply_markup: {
-                    inline_keyboard: [[{ text: "▶️ Testni boshlash", web_app: { url: url } }]]
-                }
-            });
+        if (user.paidSubjects && user.paidSubjects[key]) {
+            const url = `${getBaseUrl()}/test?userId=${id}&subject=${key}`;
+            return bot.sendMessage(id, `🔓 Ochiq: ${subjects[key].name}`, {
+                reply_markup: { inline_keyboard: [[{ text: "▶️ Testni boshlash", web_app: { url } }]] }
+            }).catch(e => bot.sendMessage(id, "Xato: Havola noto'g'ri sozlangan. Admin bilan bog'laning."));
         }
-        // SOTIB OLMAGAN BO'LSA
-        return bot.sendMessage(id, `💳 ${subjects[key].name}\nNarxi: 15 000 so'm\n\nKarta: ${CARD}\nEga: ${OWNER}`, {
+        return bot.sendMessage(id, `💳 To'lov: 15.000 so'm\n${CARD}\n${OWNER}`, {
             reply_markup: { inline_keyboard: [[{ text: "✅ To'lov qildim", callback_data: `chk|${key}` }]] }
         });
     }
@@ -130,26 +101,23 @@ bot.on("callback_query", async (q) => {
     if (data.startsWith("chk|")) {
         user.pending = data.split("|")[1];
         await user.save();
-        bot.sendMessage(id, "📸 To'lov chekini (screenshot) yuboring:");
+        return bot.sendMessage(id, "📸 Screenshot yuboring:");
     }
 
-    // ADMIN TASDIQLASHI
     if (data.startsWith("ok|") || data.startsWith("no|")) {
         if (id !== ADMIN_ID) return;
         const [action, uId, sub, tok] = data.split("|");
         const target = await User.findOne({ userId: Number(uId) });
-
         if (!target || target.actionToken !== tok) return;
 
         if (action === "ok") {
             if (!target.paidSubjects) target.paidSubjects = {};
             target.paidSubjects[sub] = true;
-            target.markModified("paidSubjects"); // MongoDB uchun muhim!
+            target.markModified("paidSubjects");
             target.pending = null; target.actionToken = null;
             await target.save();
-            
-            await bot.sendMessage(uId, `✅ To'lov tasdiqlandi! ${subjects[sub].name} ochildi.`);
-            showSubjects(uId); // Foydalanuvchiga yangi menyuni yuboramiz
+            await bot.sendMessage(uId, `✅ ${subjects[sub].name} ochildi!`);
+            showSubjects(uId);
         } else {
             target.pending = null; target.actionToken = null;
             await target.save();
@@ -159,28 +127,23 @@ bot.on("callback_query", async (q) => {
     }
 });
 
-// ===== PHOTO (CHEK) HANDLER =====
 bot.on("photo", async (msg) => {
     const id = msg.chat.id;
     const user = await User.findOne({ userId: id });
     if (!user || !user.pending) return;
-
     const token = crypto.randomBytes(3).toString("hex");
     user.actionToken = token;
     await user.save();
-
     bot.sendPhoto(ADMIN_ID, msg.photo[msg.photo.length - 1].file_id, {
-        caption: `💰 To'lov: ${user.name} ${user.surname}\n📚 Fan: ${subjects[user.pending].name}`,
+        caption: `💰 To'lov: ${user.name}\n📚 Fan: ${subjects[user.pending].name}`,
         reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: "✅ Tasdiqlash", callback_data: `ok|${id}|${user.pending}|${token}` },
-                    { text: "❌ Rad etish", callback_data: `no|${id}|${user.pending}|${token}` }
-                ]
-            ]
+            inline_keyboard: [[
+                { text: "✅ Tasdiqlash", callback_data: `ok|${id}|${user.pending}|${token}` },
+                { text: "❌ Rad etish", callback_data: `no|${id}|${user.pending}|${token}` }
+            ]]
         }
     });
-    bot.sendMessage(id, "⏳ Chek qabul qilindi, tekshirilmoqda...");
+    bot.sendMessage(id, "⏳ Tekshirilmoqda...");
 });
 
 app.listen(process.env.PORT || 3000);
