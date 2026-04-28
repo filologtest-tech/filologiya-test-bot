@@ -5,14 +5,14 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
+// Fayllar asosiy papkada bo'lgani uchun:
 app.use(express.static(__dirname));
 
-const SERVER_URL = process.env.WEB_APP_URL || "";
+// Railway Variables'dan havolani olamiz
+const WEB_APP_URL = process.env.WEB_APP_URL;
 
 // ===== DATABASE =====
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("✅ DB ulandi"))
-    .catch(err => console.error("❌ DB xatosi:", err));
+mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ MongoDB ulandi"));
 
 const userSchema = new mongoose.Schema({
     userId: Number,
@@ -21,29 +21,31 @@ const userSchema = new mongoose.Schema({
     group: String,
     step: String,
     paidSubjects: { type: Object, default: {} },
-    paidHistory: { type: Array, default: [] },
-    pending: String,
-    actionToken: String
+    actionToken: String,
+    pending: String
 });
 const User = mongoose.model("User", userSchema);
 
-// ===== MINI APP ROUTE =====
+// ===== MINI APP SERVING =====
 app.get('/test', async (req, res) => {
     const { userId, subject } = req.query;
     try {
         const user = await User.findOne({ userId: Number(userId) });
-        if (user && user.paidSubjects && user.paidSubjects[subject]) {
+        // To'lovni tekshirish
+        if (user && user.paidSubjects && user.paidSubjects[subject] === true) {
             return res.sendFile(path.join(__dirname, `${subject}.html`));
         }
-        res.status(403).send("Ruxsat yo'q");
-    } catch (e) { res.status(500).send("Xato"); }
+        res.status(403).send("Ruxsat berilmagan. Avval fanni sotib oling.");
+    } catch (e) {
+        res.status(500).send("Server xatosi");
+    }
 });
 
 // ===== BOT SETTINGS =====
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
-
-// ⚠️ DIQQAT: Bu ID aynan sizniki ekanini tekshiring!
-const ADMIN_ID = 1755754970; 
+const ADMIN_ID = 1755754970; // Sizning ID raqamingiz
+const CARD = "9860160633231537";
+const OWNER = "Safarboyev Umrbek";
 
 const subjects = {
     adabiyot: { name: "Adabiyotshunoslik asoslari" },
@@ -53,14 +55,14 @@ const subjects = {
     umumiy: { name: "Umumiy tilshunoslik" }
 };
 
-// ===== START & REGISTRATION =====
+// ===== COMMANDS =====
 bot.onText(/\/start/, async (msg) => {
     const id = msg.chat.id;
     let user = await User.findOne({ userId: id });
     if (!user) user = new User({ userId: id, paidSubjects: {} });
     user.step = "name";
     await user.save();
-    bot.sendMessage(id, "Ismingizni kiriting:");
+    bot.sendMessage(id, "Assalomu alaykum! Ismingizni kiriting:");
 });
 
 bot.on("message", async (msg) => {
@@ -72,49 +74,55 @@ bot.on("message", async (msg) => {
 
     if (user.step === "name") {
         user.name = text; user.step = "surname"; await user.save();
-        return bot.sendMessage(id, "Familiyangiz:");
+        return bot.sendMessage(id, "Familiyangizni kiriting:");
     }
     if (user.step === "surname") {
         user.surname = text; user.step = "group"; await user.save();
-        return bot.sendMessage(id, "Guruh:");
+        return bot.sendMessage(id, "Guruh raqamingizni kiriting:");
     }
     if (user.step === "group") {
         user.group = text; user.step = "done"; await user.save();
+        bot.sendMessage(id, "Muvaffaqiyatli ro'yxatdan o'tdingiz!");
         return showSubjects(id);
     }
 });
 
+// FANLAR MENYUSI (BELGILAR BILAN)
 async function showSubjects(id) {
     const user = await User.findOne({ userId: id });
     const buttons = Object.keys(subjects).map(key => {
+        // paidSubjects obyekt ekanini va ichida fan borligini tekshiramiz
         const isPaid = user.paidSubjects && user.paidSubjects[key] === true;
-        return [{ text: `${isPaid ? "✅" : "🔒"} ${subjects[key].name}`, callback_data: `sub|${key}` }];
+        return [{
+            text: `${isPaid ? "✅" : "🔒"} ${subjects[key].name}`,
+            callback_data: `sub|${key}`
+        }];
     });
-    bot.sendMessage(id, "Fan tanlang:", { reply_markup: { inline_keyboard: buttons } });
+    bot.sendMessage(id, "Fanni tanlang:", { reply_markup: { inline_keyboard: buttons } });
 }
 
-// ===== CALLBACK HANDLER (TASDIQLASH QISMI) =====
+// ===== CALLBACK HANDLER =====
 bot.on("callback_query", async (q) => {
     const id = q.from.id;
     const data = q.data;
-
-    // 1. Tugmani muzlashdan qutqarish
     bot.answerCallbackQuery(q.id).catch(() => {});
 
-    console.log(`➡️ Tugma bosildi: ${data} | Bosgan ID: ${id}`);
-
     const user = await User.findOne({ userId: id });
+    if (!user) return;
 
-    // Fan tanlash
     if (data.startsWith("sub|")) {
         const key = data.split("|")[1];
-        if (user.paidSubjects && user.paidSubjects[key]) {
-            const url = `${process.env.WEB_APP_URL}/test?userId=${id}&subject=${key}`;
-            return bot.sendMessage(id, `🔓 Ochiq: ${subjects[key].name}`, {
-                reply_markup: { inline_keyboard: [[{ text: "▶️ Testni boshlash", web_app: { url } }]] }
+        // SOTIB OLGAN BO'LSA
+        if (user.paidSubjects && user.paidSubjects[key] === true) {
+            const url = `${WEB_APP_URL}/test?userId=${id}&subject=${key}`;
+            return bot.sendMessage(id, `🔓 ${subjects[key].name} fani ochiq. Testni boshlash uchun bosing:`, {
+                reply_markup: {
+                    inline_keyboard: [[{ text: "▶️ Testni boshlash", web_app: { url: url } }]]
+                }
             });
         }
-        return bot.sendMessage(id, `💳 To'lov: 15.000 so'm\n9860160633231537\nSafarboyev Umrbek`, {
+        // SOTIB OLMAGAN BO'LSA
+        return bot.sendMessage(id, `💳 ${subjects[key].name}\nNarxi: 15 000 so'm\n\nKarta: ${CARD}\nEga: ${OWNER}`, {
             reply_markup: { inline_keyboard: [[{ text: "✅ To'lov qildim", callback_data: `chk|${key}` }]] }
         });
     }
@@ -122,44 +130,36 @@ bot.on("callback_query", async (q) => {
     if (data.startsWith("chk|")) {
         user.pending = data.split("|")[1];
         await user.save();
-        return bot.sendMessage(id, "📸 Chek (screenshot) yuboring:");
+        bot.sendMessage(id, "📸 To'lov chekini (screenshot) yuboring:");
     }
 
-    // TASDIQLASH LOGIKASI
+    // ADMIN TASDIQLASHI
     if (data.startsWith("ok|") || data.startsWith("no|")) {
-        console.log("Checking Admin ID...");
-        if (id !== ADMIN_ID) {
-            console.log(`❌ Rad etildi: ${id} admin emas. Kutilgan ID: ${ADMIN_ID}`);
-            return;
-        }
-
+        if (id !== ADMIN_ID) return;
         const [action, uId, sub, tok] = data.split("|");
         const target = await User.findOne({ userId: Number(uId) });
 
-        if (!target || target.actionToken !== tok) {
-            console.log("❌ Token xato yoki foydalanuvchi yo'q");
-            return bot.sendMessage(ADMIN_ID, "Eskirgan so'rov.");
-        }
+        if (!target || target.actionToken !== tok) return;
 
         if (action === "ok") {
             if (!target.paidSubjects) target.paidSubjects = {};
             target.paidSubjects[sub] = true;
-            target.markModified("paidSubjects");
+            target.markModified("paidSubjects"); // MongoDB uchun muhim!
             target.pending = null; target.actionToken = null;
             await target.save();
-            bot.sendMessage(uId, `✅ ${subjects[sub].name} ochildi!`);
-            bot.sendMessage(ADMIN_ID, "Tasdiqlandi.");
+            
+            await bot.sendMessage(uId, `✅ To'lov tasdiqlandi! ${subjects[sub].name} ochildi.`);
+            showSubjects(uId); // Foydalanuvchiga yangi menyuni yuboramiz
         } else {
             target.pending = null; target.actionToken = null;
             await target.save();
             bot.sendMessage(uId, "❌ To'lov rad etildi.");
-            bot.sendMessage(ADMIN_ID, "Rad etildi.");
         }
-        bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: id, message_id: q.message.message_id }).catch(() => {});
+        bot.deleteMessage(id, q.message.message_id).catch(() => {});
     }
 });
 
-// ===== PHOTO HANDLER =====
+// ===== PHOTO (CHEK) HANDLER =====
 bot.on("photo", async (msg) => {
     const id = msg.chat.id;
     const user = await User.findOne({ userId: id });
@@ -169,19 +169,18 @@ bot.on("photo", async (msg) => {
     user.actionToken = token;
     await user.save();
 
-    console.log(`📸 Chek keldi: ${user.name} dan ${user.pending} uchun`);
-
     bot.sendPhoto(ADMIN_ID, msg.photo[msg.photo.length - 1].file_id, {
-        caption: `💰 To'lov: ${user.name}\n📚 Fan: ${subjects[user.pending].name}`,
+        caption: `💰 To'lov: ${user.name} ${user.surname}\n📚 Fan: ${subjects[user.pending].name}`,
         reply_markup: {
-            inline_keyboard: [[
-                { text: "✅ Tasdiqlash", callback_data: `ok|${id}|${user.pending}|${token}` },
-                { text: "❌ Rad etish", callback_data: `no|${id}|${user.pending}|${token}` }
-            ]]
+            inline_keyboard: [
+                [
+                    { text: "✅ Tasdiqlash", callback_data: `ok|${id}|${user.pending}|${token}` },
+                    { text: "❌ Rad etish", callback_data: `no|${id}|${user.pending}|${token}` }
+                ]
+            ]
         }
     });
-    bot.sendMessage(id, "⏳ Tekshirilmoqda...");
+    bot.sendMessage(id, "⏳ Chek qabul qilindi, tekshirilmoqda...");
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server ${PORT}da tayyor`));
+app.listen(process.env.PORT || 3000);
