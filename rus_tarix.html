@@ -1,10 +1,82 @@
-import re
-import json
-import base64
+<!DOCTYPE html>
+<html lang="uz" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rus adabiyoti tarixi - Test Platformasi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { gray: { 850: '#1f2937', 900: '#111827' } }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .option-btn { transition: all 0.2s ease-in-out; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
+    
+    <header class="w-full bg-white dark:bg-gray-800 shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-10">
+        <h1 class="text-xl font-bold text-blue-600 dark:text-blue-400 uppercase">Rus Adabiyoti Tarixi</h1>
+        <button id="theme-toggle" class="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-xl">🌙</button>
+    </header>
 
-# The user's input text (questions and answers). 
-# Using a compressed version of the exact prompt text provided by the user.
-raw_text = """
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div class="w-full max-w-3xl bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 md:p-10 border border-gray-100 dark:border-gray-700 relative">
+            
+            <div id="start-screen" class="text-center animate-fade-in">
+                <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                </div>
+                <h2 class="text-3xl font-extrabold mb-4 uppercase text-gray-800 dark:text-white">RUS ADABIYOTI TARIXI</h2>
+                <p class="text-lg text-gray-600 dark:text-gray-400 mb-6">Interaktiv test platformasi</p>
+                <p id="total-questions-text" class="text-lg font-medium text-blue-600 mb-8">Savollar yuklanmoqda...</p>
+                <button onclick="startQuiz()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-12 rounded-xl shadow-lg transition-all transform hover:-translate-y-1">
+                    TESTNI BOSHLASH
+                </button>
+            </div>
+
+            <div id="quiz-screen" class="hidden animate-fade-in">
+                <div class="flex justify-between items-center mb-6 border-b pb-4 dark:border-gray-700">
+                    <span id="question-counter" class="bg-blue-100 text-blue-800 py-1 px-4 rounded-full font-bold">1-savol</span>
+                    <span id="score-counter" class="text-green-600 font-bold">Ball: 0</span>
+                </div>
+                <h3 id="question-text" class="text-xl font-semibold mb-8 leading-relaxed whitespace-pre-wrap"></h3>
+                <div id="options-container" class="space-y-4 mb-8"></div>
+                <div class="flex justify-end pt-4 border-t dark:border-gray-700">
+                    <button id="next-btn" onclick="nextQuestion()" disabled class="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl opacity-50 cursor-not-allowed">Keyingisi →</button>
+                </div>
+            </div>
+
+            <div id="result-screen" class="hidden animate-fade-in text-center">
+                <h2 class="text-3xl font-bold mb-6">Natija</h2>
+                <div class="bg-blue-50 dark:bg-gray-700 p-8 rounded-3xl mb-8 border-2 border-blue-200">
+                    <p id="final-score" class="text-6xl font-black text-blue-600 dark:text-blue-400">0 / 200</p>
+                    <p id="percentage-text" class="text-xl mt-2 font-bold text-gray-600 dark:text-gray-300"></p>
+                </div>
+                <button onclick="location.reload()" class="bg-gray-800 text-white py-3 px-10 rounded-xl mb-6">Qaytadan ishlash</button>
+                <div id="mistakes-section" class="mt-8 text-left hidden">
+                    <h3 class="text-xl font-bold mb-4 text-red-500">Xatolar ustida ishlash:</h3>
+                    <div id="mistakes-container" class="space-y-4 max-h-80 overflow-y-auto pr-2"></div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script type="text/plain" id="raw-quiz-data">
 № 1. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 10, параграф 4. Уровень сложности: 2
 Построение произведения, расположение и взаимосвязь его частей, порядок изложения событий называется …
 A) Сюжетом
@@ -80,7 +152,7 @@ D) ода «Фелица» Г.Державина
 № 13. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 1. Уровень сложности: 2
 Кого из русских литераторов 18 века А.Пушкин назвал «сатиры смелым властелином» и «другом свободы».
 A) М.Ломоносова
-B) А.Радищева
+B) А.Радищевa
 C) Д.Фонвизина
 D) И.Крылова
 № 14. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 1. Уровень сложности: 2
@@ -239,12 +311,6 @@ A) В.К.Тредиаковский
 B) Г.Р.Державин
 C) М.В.Ломоносов
 D) Д.И.Фонвизин
-№ 147. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 2
-Кому из героев комедии «Недоросль» принадлежат эти слова: «Я отошел от двора без деревень, без лент, без чинов, да мое принес домой неповрежденно, мою душу, мою честь, мои правила».
-A) Правдин
-B) Милон
-C) Кутейкин
-D) Стародум
 № 40. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 2
 Укажите вариант, содержащий сведения из биографии Д.Фонвизина.
 A) Будучи 25 лет от роду, создал свою первую комедию «Бригадир».
@@ -335,12 +401,6 @@ A) А.Сумароков
 B) М.Ломоносов
 C) Г.Державин
 D) А.Пушкин
-№ 163. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 1. Уровень сложности: 2
-Определите героя, произнесшего данные слова в поэме «Слово о полку Игореве»: «Лучше ведь убитым быть, чем плененным быть».
-A) Всеволод
-B) Игорь
-C) Святослав
-D) Лавр
 № 55. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 2
 Определите поэта, который «обращается к любезным ему наукам». В земное недро ты, Химия, проникни взора остротой, И что содержит в нем Россия, драги сокровища открой.
 A) А.Сумароков
@@ -484,7 +544,7 @@ D) Рудин, «Рудин»
 A) А.Пушкина
 B) Г.Державина
 C) Д.Фонвизина
-D) М.Ломоносова
+D) М.Ломоносовa
 № 79. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 3. Уровень сложности: 1
 Определите, кто из поэтов, борясь всю жизнь с пороком, считал, что «властители и судии» должны «всегда спасать от бед невинных», «исторгнуть бедных из оков».
 A) Г.Державин
@@ -617,8 +677,10 @@ A) Манилову
 B) Ростову
 C) Обломову
 D) Дубровскому
+
 **TO'G'RI JAVOBLAR KALITI (1-100)**
 1-B, 2-C, 3-A, 4-D, 5-A, 6-B, 7-D, 8-A, 9-B, 10-C, 11-D, 12-A, 13-C, 14-B, 15-D, 16-A, 17-B, 18-C, 19-D, 20-A, 21-C, 22-B, 23-D, 24-A, 25-C, 26-B, 27-C, 28-A, 29-B, 30-C, 31-D, 32-A, 33-C, 34-D, 35-C, 36-B, 37-A, 38-B, 39-C, 147-D, 40-A, 41-C, 42-D, 43-A, 44-B, 45-B, 46-C, 47-A, 48-B, 49-C, 50-C, 51-D, 52-A, 53-C, 54-B, 163-A, 55-D, 56-A, 57-C, 58-C, 59-A, 60-C, 61-A, 62-B, 63-C, 64-D, 65-A, 66-C, 67-D, 68-A, 69-B, 70-C, 71-D, 72-A, 73-B, 74-C, 75-A, 76-B, 77-C, 78-D, 79-A, 80-A, 81-B, 82-C, 83-D, 84-C, 85-D, 86-A, 87-B, 88-D, 89-D, 90-C, 91-A, 92-B, 93-D, 94-A, 95-C, 96-B, 97-B, 98-A, 99-B, 100-C.
+
 № 101. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 2
 Из какого произведения взят этот диалог : - Вы, верно, не здешние, - сказала она. – Точно так-с: я вчера только приехала из провинции. – У меня нет ни отца, ни матери. Я приехала подать просьбу государыне.
 A) «Обломов»
@@ -704,7 +766,7 @@ B) старые служаки
 C) прожигатели жизни
 D) служители порядка
 № 115. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 3
-Кто из литературных героев А.Пушкина написал эти строки: Но глаза, что мя пленили, Всеминутно предо мной; Они дух во мне смутили, Сокрушили мой покой.
+Кто из литератур героев А.Пушкина написал эти строки: Но глаза, что мя пленили, Всеминутно предо мной; Они дух во мне смутили, Сокрушили мой покой.
 A) Евгений Онегин
 B) Петр Гринев
 C) гусар Минский
@@ -765,8 +827,8 @@ C) Катя-А.Кирсанов
 D) Наталья-Рудин
 № 125. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 1
 Герой пьесы «Гроза» - механик-самоучка, отыскивающий вечный двигатель…
-A) Тихон
-B) Борис
+A) Тихона
+B) Бориса
 C) Шапкин
 D) Кулигин
 № 126. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 11. Уровень сложности: 2
@@ -1219,336 +1281,177 @@ A) А.Грибоедов
 B) М.Лермонтов
 C) А.Пушкин
 D) И.Тургенев
+
 **TO'G'RI JAVOBLAR KALITI (101-200)**
 101-D, 102-B, 103-C, 104-A, 105-D, 106-B, 107-C, 108-A, 109-D, 110-B, 111-C, 112-A, 113-D, 114-C, 115-B, 116-A, 117-D, 118-B, 119-C, 120-A, 121-D, 122-B, 123-C, 124-A, 125-D, 126-C, 127-A, 128-B, 129-D, 130-C, 131-A, 132-B, 133-D, 134-A, 135-C, 136-B, 137-D, 138-B, 139-A, 140-C, 141-D, 142-B, 143-A, 144-C, 145-D, 146-B, 147-A, 148-C, 149-A, 150-D, 151-B, 152-C, 153-B, 154-A, 155-D, 156-A, 157-C, 158-B, 159-D, 160-A, 161-C, 162-B, 163-D, 164-A, 165-C, 166-B, 167-D, 168-A, 169-C, 170-D, 171-B, 172-A, 173-C, 174-D, 175-B, 176-A, 177-C, 178-B, 179-D, 180-A, 181-C, 182-B, 183-D, 184-A, 185-C, 186-D, 187-B, 188-C, 189-A, 190-D, 191-B, 192-C, 193-A, 194-B, 195-D, 196-A, 197-C, 198-D, 199-B, 200-A.
-"""
-
-keys = {}
-for match in re.finditer(r'(\d+)-([A-D])', raw_text):
-    keys[int(match.group(1))] = match.group(2)
-
-questions_data = []
-q_pattern = r'№\s*(\d+)\.\s*(.*?)\nA\)\s*(.*?)\nB\)\s*(.*?)\nC\)\s*(.*?)\nD\)\s*(.*?)(?=\n№|\n\*\*|\Z)'
-for match in re.finditer(q_pattern, raw_text, re.DOTALL):
-    q_id = int(match.group(1))
-    if q_id in keys:
-        questions_data.append({
-            "id": q_id,
-            "text": match.group(2).strip(),
-            "options": {
-                "A": match.group(3).strip(),
-                "B": match.group(4).strip(),
-                "C": match.group(5).strip(),
-                "D": match.group(6).strip()
-            },
-            "correctAnswer": keys[q_id]
-        })
-
-questions_data.sort(key=lambda x: x['id'])
-
-json_data = json.dumps(questions_data, ensure_ascii=False)
-
-html_template = f"""<!DOCTYPE html>
-<html lang="uz" class="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rus adabiyoti tarixi - Test Platformasi</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {{
-            darkMode: 'class',
-            theme: {{
-                extend: {{
-                    colors: {{
-                        gray: {{
-                            850: '#1f2937',
-                            900: '#111827',
-                        }}
-                    }}
-                }}
-            }}
-        }}
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {{ font-family: 'Inter', sans-serif; }}
-        .option-btn {{ transition: all 0.2s ease-in-out; }}
-        .option-btn:disabled {{ transform: none; }}
-        ::-webkit-scrollbar {{
-            width: 8px;
-        }}
-        ::-webkit-scrollbar-track {{
-            background: #f1f1f1; 
-            border-radius: 4px;
-        }}
-        .dark ::-webkit-scrollbar-track {{
-            background: #374151;
-        }}
-        ::-webkit-scrollbar-thumb {{
-            background: #cbd5e1; 
-            border-radius: 4px;
-        }}
-        .dark ::-webkit-scrollbar-thumb {{
-            background: #4b5563; 
-        }}
-        ::-webkit-scrollbar-thumb:hover {{
-            background: #94a3b8; 
-        }}
-    </style>
-</head>
-<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
-    <header class="w-full bg-white dark:bg-gray-800 shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-10">
-        <h1 class="text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400 tracking-tight">TEST PLATFORMASI</h1>
-        <button id="theme-toggle" class="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <span id="theme-icon" class="text-xl leading-none block">🌙</span>
-        </button>
-    </header>
-
-    <main class="flex-grow flex items-center justify-center p-4 py-8">
-        <div class="w-full max-w-3xl bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 md:p-10 border border-gray-100 dark:border-gray-700 relative overflow-hidden">
-            
-            <div id="start-screen" class="text-center py-6">
-                <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <svg class="w-10 h-10 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                </div>
-                <h2 class="text-3xl md:text-4xl font-extrabold mb-4 uppercase tracking-wider text-gray-800 dark:text-white">Rus adabiyoti tarixi</h2>
-                <p class="text-lg text-gray-600 dark:text-gray-400 mb-2">Fan bo'yicha interaktiv test sinovi.</p>
-                <p class="text-md text-gray-500 dark:text-gray-400 mb-10 font-medium" id="total-questions-text">Jami savollar soni: 0 ta</p>
-                <button onclick="startQuiz()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-4 px-10 rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">
-                    Testni boshlash
-                </button>
-            </div>
-
-            <div id="quiz-screen" class="hidden animate-fade-in">
-                <div class="flex justify-between items-center mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
-                    <span id="question-counter" class="text-sm font-bold bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 py-1.5 px-4 rounded-full">Savol 1 / 200</span>
-                    <span id="score-counter" class="text-sm font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 py-1.5 px-4 rounded-full">Ball: 0</span>
-                </div>
-                
-                <h3 id="question-text" class="text-lg md:text-xl font-semibold mb-8 leading-relaxed text-gray-800 dark:text-gray-100 whitespace-pre-wrap"></h3>
-                
-                <div id="options-container" class="space-y-4 mb-8">
-                    </div>
-                
-                <div class="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">
-                    <button id="next-btn" onclick="nextQuestion()" disabled class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-500 text-white font-bold text-lg py-3.5 px-8 rounded-xl transition-all cursor-not-allowed">
-                        Keyingisi <span class="ml-2">→</span>
-                    </button>
-                </div>
-            </div>
-
-            <div id="result-screen" class="hidden animate-fade-in">
-                <div class="text-center mb-10">
-                    <div class="w-24 h-24 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <span class="text-4xl">🏆</span>
-                    </div>
-                    <h2 class="text-3xl font-extrabold mb-6 text-gray-800 dark:text-white">Test Yakunlandi!</h2>
-                    
-                    <div class="inline-block w-full max-w-sm bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800 border-2 border-blue-100 dark:border-gray-600 rounded-3xl p-8 mb-8 shadow-inner">
-                        <p class="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wide">Umumiy Natijangiz</p>
-                        <p id="final-score" class="text-5xl font-black text-blue-600 dark:text-blue-400">0 / 0</p>
-                    </div>
-                    
-                    <div>
-                        <button onclick="restartQuiz()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-10 rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">
-                            ↻ Qaytadan ishlash
-                        </button>
-                    </div>
-                </div>
-
-                <div id="mistakes-section" class="hidden mt-8 border-t border-gray-200 dark:border-gray-700 pt-8">
-                    <h3 class="text-2xl font-bold mb-6 flex items-center text-gray-800 dark:text-white">
-                        <span class="bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 p-2 rounded-lg mr-3 text-sm">⚠️</span>
-                        Sizning xatolaringiz:
-                    </h3>
-                    <div id="mistakes-container" class="space-y-4 max-h-[500px] overflow-y-auto pr-3 rounded-xl">
-                        </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <style>
-        .animate-fade-in {{ animation: fadeIn 0.4s ease-out forwards; }}
-        @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-    </style>
 
     <script>
-        const quizData = {json_data};
-
+        let quizData = [];
         let currentQuestionIndex = 0;
         let score = 0;
         let mistakes = [];
         let selectedOption = null;
 
-        // Elements
-        const startScreen = document.getElementById('start-screen');
-        const quizScreen = document.getElementById('quiz-screen');
-        const resultScreen = document.getElementById('result-screen');
-        const questionText = document.getElementById('question-text');
-        const optionsContainer = document.getElementById('options-container');
-        const nextBtn = document.getElementById('next-btn');
-        const questionCounter = document.getElementById('question-counter');
-        const scoreCounter = document.getElementById('score-counter');
-        const totalQuestionsText = document.getElementById('total-questions-text');
-        const finalScoreText = document.getElementById('final-score');
-        const mistakesSection = document.getElementById('mistakes-section');
-        const mistakesContainer = document.getElementById('mistakes-container');
-        const themeToggle = document.getElementById('theme-toggle');
-        const themeIcon = document.getElementById('theme-icon');
-        const htmlTag = document.documentElement;
+        function initData() {
+            const rawText = document.getElementById('raw-quiz-data').textContent;
+            
+            // Javoblarni kalitdan ajratib olish (1-200)
+            const answersMap = {};
+            const keyMatches = rawText.match(/(\d+)-([A-D])/g);
+            if (keyMatches) {
+                keyMatches.forEach(m => {
+                    const [num, letter] = m.split('-');
+                    answersMap[parseInt(num)] = letter.trim();
+                });
+            }
 
-        // Init Setup
-        totalQuestionsText.innerHTML = `Jami savollar soni: <b>${{quizData.length}}</b> ta<br><span class="text-sm mt-1 block opacity-75">(A, B, C, D tizimidagi variantlar)</span>`;
+            // Savollarni bo'laklash
+            const blocks = rawText.split(/№\s*/).filter(b => b.trim() && !b.includes('KALITI'));
+            
+            quizData = blocks.map(block => {
+                const idMatch = block.match(/^(\d+)\./);
+                if (!idMatch) return null;
 
-        // Theme
-        let isDark = false;
-        themeToggle.addEventListener('click', () => {{
-            isDark = !isDark;
-            if (isDark) {{
-                htmlTag.classList.add('dark');
-                themeIcon.innerText = '☀️';
-            }} else {{
-                htmlTag.classList.remove('dark');
-                themeIcon.innerText = '🌙';
-            }}
-        }});
+                const id = parseInt(idMatch[1]);
+                
+                // Savol matnini ajratib olish ("A)" gacha bo'lgan joy)
+                const textSplit = block.split(/A\)/);
+                if(textSplit.length < 2) return null;
+                
+                let text = textSplit[0].replace(/^\d+\.\s*/, '').trim();
 
-        function startQuiz() {{
-            startScreen.classList.add('hidden');
-            resultScreen.classList.add('hidden');
-            quizScreen.classList.remove('hidden');
+                const options = {};
+                const optA = block.match(/A\)\s*([^\n]+)/)?.[1]?.trim();
+                const optB = block.match(/B\)\s*([^\n]+)/)?.[1]?.trim();
+                const optC = block.match(/C\)\s*([^\n]+)/)?.[1]?.trim();
+                const optD = block.match(/D\)\s*([^\n]+)/)?.[1]?.trim();
+
+                if (optA) options.A = optA;
+                if (optB) options.B = optB;
+                if (optC) options.C = optC;
+                if (optD) options.D = optD;
+
+                return {
+                    id,
+                    text,
+                    options,
+                    correctAnswer: answersMap[id]
+                };
+            }).filter(q => q && q.correctAnswer);
+
+            document.getElementById('total-questions-text').innerText = `Bazada ${quizData.length} ta savol tayyor!`;
+        }
+
+        function startQuiz() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
             currentQuestionIndex = 0;
             score = 0;
             mistakes = [];
             showQuestion();
-        }}
+        }
 
-        function showQuestion() {{
+        function showQuestion() {
             selectedOption = null;
+            const nextBtn = document.getElementById('next-btn');
             nextBtn.disabled = true;
-            nextBtn.classList.remove('hover:-translate-y-1', 'shadow-lg');
+            nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
             const q = quizData[currentQuestionIndex];
-            questionCounter.innerText = `Savol ${{currentQuestionIndex + 1}} / ${{quizData.length}}`;
-            scoreCounter.innerText = `Ball: ${{score}}`;
-            questionText.innerText = q.text;
+            document.getElementById('question-counter').innerText = `${currentQuestionIndex + 1} / ${quizData.length}`;
+            document.getElementById('question-text').innerText = q.text;
 
-            optionsContainer.innerHTML = '';
-            
-            // Explicitly order A, B, C, D
-            const order = ['A', 'B', 'C', 'D'];
-            order.forEach(key => {{
-                if(q.options[key]) {{
-                    const value = q.options[key];
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            ['A', 'B', 'C', 'D'].forEach(key => {
+                if (q.options[key]) {
                     const btn = document.createElement('button');
-                    btn.className = 'option-btn w-full text-left p-4 md:p-5 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-sm text-base md:text-lg flex items-start group';
-                    btn.innerHTML = `<span class="font-bold text-blue-600 dark:text-blue-400 mr-3 mt-0.5 group-hover:scale-110 transition-transform">${{key}})</span> <span class="flex-1">${{value}}</span>`;
+                    btn.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 bg-white dark:bg-gray-800 flex items-center";
+                    btn.innerHTML = `<span class="font-bold mr-4 text-blue-600">${key})</span> ${q.options[key]}`;
                     btn.onclick = () => selectOption(key, btn);
-                    optionsContainer.appendChild(btn);
-                }}
-            }});
-        }}
+                    container.appendChild(btn);
+                }
+            });
+            window.scrollTo(0, 0);
+        }
 
-        function selectOption(key, btnElement) {{
+        function selectOption(key, btn) {
             if (selectedOption) return;
             selectedOption = key;
             const q = quizData[currentQuestionIndex];
             const isCorrect = key === q.correctAnswer;
 
-            const allButtons = optionsContainer.querySelectorAll('button');
-            allButtons.forEach(btn => {{
-                btn.onclick = null;
-                btn.classList.remove('hover:border-blue-500', 'dark:hover:border-blue-400', 'cursor-pointer', 'shadow-sm');
-                btn.classList.add('cursor-default');
+            const allBtns = document.querySelectorAll('.option-btn');
+            allBtns.forEach(b => {
+                const bText = b.innerText.trim();
+                const bKey = bText.charAt(0);
+                
+                if (bKey === q.correctAnswer) {
+                    b.classList.add('border-green-500', 'bg-green-50', 'dark:bg-green-900/30');
+                } else if (bKey === key) {
+                    b.classList.add('border-red-500', 'bg-red-50', 'dark:bg-red-900/30');
+                }
+                b.classList.add('opacity-50');
+            });
+            btn.classList.remove('opacity-50');
 
-                const isThisBtnCorrect = btn.innerHTML.includes(`${{q.correctAnswer}})`);
-
-                if (isThisBtnCorrect) {{
-                    btn.classList.add('bg-green-100', 'border-green-500', 'dark:bg-green-900', 'dark:border-green-500');
-                    btn.classList.remove('border-gray-200', 'dark:border-gray-700', 'bg-white', 'dark:bg-gray-800');
-                    btn.querySelector('span:first-child').classList.replace('text-blue-600', 'text-green-700');
-                    btn.querySelector('span:first-child').classList.replace('dark:text-blue-400', 'dark:text-green-400');
-                }} else if (btn === btnElement && !isCorrect) {{
-                    btn.classList.add('bg-red-100', 'border-red-500', 'dark:bg-red-900', 'dark:border-red-500');
-                    btn.classList.remove('border-gray-200', 'dark:border-gray-700', 'bg-white', 'dark:bg-gray-800');
-                    btn.querySelector('span:first-child').classList.replace('text-blue-600', 'text-red-700');
-                    btn.querySelector('span:first-child').classList.replace('dark:text-blue-400', 'dark:text-red-400');
-                }} else {{
-                    btn.classList.add('opacity-40');
-                }}
-            }});
-
-            if (isCorrect) {{
+            if (isCorrect) {
                 score++;
-                scoreCounter.innerText = `Ball: ${{score}}`;
-            }} else {{
-                mistakes.push({{
-                    qNum: q.id,
-                    question: q.text,
-                    userAnswer: `${{key}}) ${{q.options[key]}}`,
-                    correctAnswer: `${{q.correctAnswer}}) ${{q.options[q.correctAnswer]}}`
-                }});
-            }}
+            } else {
+                mistakes.push({
+                    id: q.id,
+                    q: q.text,
+                    user: key,
+                    correct: q.correctAnswer,
+                    userVal: q.options[key],
+                    correctVal: q.options[q.correctAnswer]
+                });
+            }
 
+            const nextBtn = document.getElementById('next-btn');
             nextBtn.disabled = false;
-            nextBtn.classList.add('hover:-translate-y-1', 'shadow-lg');
-            
-            // Auto scroll to bottom of quiz container
-            setTimeout(() => {{
-                window.scrollTo({{ top: document.body.scrollHeight, behavior: 'smooth' }});
-            }}, 100);
-        }}
+            nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('score-counter').innerText = `Ball: ${score}`;
+        }
 
-        function nextQuestion() {{
-            if (!selectedOption) return;
+        function nextQuestion() {
             currentQuestionIndex++;
-            if (currentQuestionIndex < quizData.length) {{
+            if (currentQuestionIndex < quizData.length) {
                 showQuestion();
-            }} else {{
+            } else {
                 showResults();
-            }}
-        }}
+            }
+        }
 
-        function showResults() {{
-            quizScreen.classList.add('hidden');
-            resultScreen.classList.remove('hidden');
+        function showResults() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            const resScreen = document.getElementById('result-screen');
+            resScreen.classList.remove('hidden');
             
-            window.scrollTo(0, 0);
+            document.getElementById('final-score').innerText = `${score} / ${quizData.length}`;
+            const percent = Math.round((score / quizData.length) * 100);
+            document.getElementById('percentage-text').innerText = `${percent}% o'zlashtirish ko'rsatkichi`;
 
-            finalScoreText.innerText = `${{score}} / ${{quizData.length}}`;
+            if (mistakes.length > 0) {
+                document.getElementById('mistakes-section').classList.remove('hidden');
+                const cont = document.getElementById('mistakes-container');
+                cont.innerHTML = mistakes.map(m => `
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-red-500 shadow-sm">
+                        <p class="font-bold mb-2">№${m.id}. ${m.q}</p>
+                        <p class="text-sm text-red-600 font-medium">Sizning javobingiz: ${m.user}) ${m.userVal}</p>
+                        <p class="text-sm text-green-600 font-bold">To'g'ri javob: ${m.correct}) ${m.correctVal}</p>
+                    </div>
+                `).join('');
+            }
+        }
 
-            if (mistakes.length === 0) {{
-                mistakesSection.classList.add('hidden');
-            }} else {{
-                mistakesSection.classList.remove('hidden');
-                mistakesContainer.innerHTML = '';
-                mistakes.forEach(m => {{
-                    const div = document.createElement('div');
-                    div.className = 'p-5 border-l-4 border-red-500 bg-red-50/50 dark:bg-gray-800/80 dark:border-red-500 rounded-r-xl shadow-sm hover:shadow-md transition-shadow';
-                    div.innerHTML = `
-                        <p class="font-semibold text-lg mb-3 text-gray-900 dark:text-gray-100 leading-relaxed"><span class="text-red-500 dark:text-red-400 mr-2">№${{m.qNum}}.</span> ${{m.question}}</p>
-                        <div class="space-y-2 bg-white dark:bg-gray-900 p-4 rounded-lg">
-                            <p class="text-base text-red-700 dark:text-red-400 flex items-start"><span class="mr-3 font-bold">❌</span> <span>${{m.userAnswer}}</span></p>
-                            <p class="text-base text-green-700 dark:text-green-400 flex items-start"><span class="mr-3 font-bold">✅</span> <span>${{m.correctAnswer}}</span></p>
-                        </div>
-                    `;
-                    mistakesContainer.appendChild(div);
-                }});
-            }}
-        }}
+        document.getElementById('theme-toggle').onclick = () => {
+            document.documentElement.classList.toggle('dark');
+        };
 
-        function restartQuiz() {{
-            startQuiz();
-            window.scrollTo(0, 0);
-        }}
+        window.onload = initData;
     </script>
 </body>
-</html>"""
-
-with open('/mnt/data/rus_adabiyoti_test.html', 'w', encoding='utf-8') as f:
-    f.write(html_template)
-print("File generated successfully: /mnt/data/rus_adabiyoti_test.html")
-
-
+</html>
