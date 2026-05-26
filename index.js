@@ -123,7 +123,7 @@ bot.on("callback_query", async (q) => {
                     reply_markup: { inline_keyboard: [[{ text: "▶️ Testni boshlash", web_app: { url } }]] }
                 });
             }
-            return bot.sendMessage(id, `💳 To'lov: 15.000 so'm\n${CARD}\n${OWNER}`, {
+            return bot.sendMessage(id, `💳 To'lov: 20.000 so'm\n${CARD}\n${OWNER}`, {
                 reply_markup: { inline_keyboard: [[{ text: "✅ To'lov qildim", callback_data: `chk|${key}` }]] }
             });
         }
