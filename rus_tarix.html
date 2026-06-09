@@ -1,82 +1,114 @@
 <!DOCTYPE html>
-<html lang="uz" class="light">
+<html lang="uz" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rus adabiyoti tarixi - Test Platformasi</title>
+    <title>Rus adabiyoti tarixi - Interaktiv Test</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    colors: { gray: { 850: '#1f2937', 900: '#111827' } }
+                    colors: {
+                        gray: {
+                            850: '#1f2937',
+                            900: '#111827',
+                        }
+                    }
                 }
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .option-btn { transition: all 0.2s ease-in-out; }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .option-btn { transition: all 0.2s ease; }
+        .correct-ans { background-color: #dcfce7 !important; border-color: #22c55e !important; color: #166534 !important; }
+        .wrong-ans { background-color: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b !important; }
+        
+        .dark .correct-ans { background-color: #064e3b !important; border-color: #10b981 !important; color: #d1fae5 !important; }
+        .dark .wrong-ans { background-color: #7f1d1d !important; border-color: #ef4444 !important; color: #fee2e2 !important; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
-    
-    <header class="w-full bg-white dark:bg-gray-800 shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-10">
-        <h1 class="text-xl font-bold text-blue-600 dark:text-blue-400 uppercase">Rus Adabiyoti Tarixi</h1>
-        <button id="theme-toggle" class="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-xl">🌙</button>
+<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 min-h-screen flex flex-col transition-colors duration-300">
+
+    <header class="bg-white dark:bg-gray-850 shadow-md p-4 flex justify-between items-center sticky top-0 z-10">
+        <h1 class="text-xl md:text-2xl font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">
+            RUS ADABIYOTI TARIXI
+        </h1>
+        <button id="theme-toggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+            <span id="theme-icon" class="text-xl">☀️</span>
+        </button>
     </header>
 
-    <main class="flex-grow flex items-center justify-center p-4">
-        <div class="w-full max-w-3xl bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 md:p-10 border border-gray-100 dark:border-gray-700 relative">
-            
-            <div id="start-screen" class="text-center animate-fade-in">
-                <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-3xl flex flex-col">
+        
+        <div id="start-screen" class="flex flex-col items-center justify-center flex-grow space-y-6 text-center animate-fade-in">
+            <div class="bg-white dark:bg-gray-850 p-8 rounded-2xl shadow-lg w-full">
+                <h2 class="text-3xl font-bold mb-4">Testga xush kelibsiz!</h2>
+                <p class="text-lg mb-6 text-gray-600 dark:text-gray-400">
+                    Ushbu interaktiv test orqali rus adabiyoti tarixi bo'yicha bilimlaringizni sinab ko'ring.
+                </p>
+                <div class="inline-block bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 px-4 py-2 rounded-full font-medium mb-8">
+                    Jami savollar soni: <span id="total-q-count">0</span> ta
                 </div>
-                <h2 class="text-3xl font-extrabold mb-4 uppercase text-gray-800 dark:text-white">RUS ADABIYOTI TARIXI</h2>
-                <p class="text-lg text-gray-600 dark:text-gray-400 mb-6">Interaktiv test platformasi</p>
-                <p id="total-questions-text" class="text-lg font-medium text-blue-600 mb-8">Savollar yuklanmoqda...</p>
-                <button onclick="startQuiz()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-12 rounded-xl shadow-lg transition-all transform hover:-translate-y-1">
-                    TESTNI BOSHLASH
+                <button id="start-btn" class="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 text-lg">
+                    Testni boshlash
+                </button>
+            </div>
+        </div>
+
+        <div id="quiz-screen" class="hidden flex-col flex-grow animate-fade-in">
+            <div class="bg-white dark:bg-gray-850 p-6 md:p-8 rounded-2xl shadow-lg w-full mb-6 relative">
+                
+                <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <span class="text-sm font-semibold text-gray-500 dark:text-gray-400" id="q-meta"></span>
+                    <span class="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 py-1 px-3 rounded-full text-sm font-bold shadow-sm">
+                        Savol: <span id="current-q-num">1</span> / <span id="quiz-total-count">0</span>
+                    </span>
+                </div>
+
+                <h3 id="question-text" class="text-xl md:text-2xl font-medium mb-8 leading-relaxed"></h3>
+
+                <div id="options-container" class="space-y-4 mb-8">
+                    </div>
+
+                <div class="flex justify-end">
+                    <button id="next-btn" disabled class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:dark:bg-gray-600 text-white font-bold rounded-xl shadow transition-all cursor-not-allowed opacity-50">
+                        Keyingisi ➔
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-screen" class="hidden flex-col items-center flex-grow animate-fade-in w-full">
+            <div class="bg-white dark:bg-gray-850 p-8 rounded-2xl shadow-lg w-full text-center mb-6">
+                <h2 class="text-3xl font-bold mb-2">Test yakunlandi!</h2>
+                <div class="text-6xl my-6">🏆</div>
+                <p class="text-xl font-medium mb-2">Umumiy ball:</p>
+                <p class="text-4xl font-black text-indigo-600 dark:text-indigo-400 mb-8">
+                    <span id="score-correct">0</span> / <span id="score-total">0</span>
+                </p>
+                <button id="restart-btn" class="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all">
+                    Qaytadan ishlash
                 </button>
             </div>
 
-            <div id="quiz-screen" class="hidden animate-fade-in">
-                <div class="flex justify-between items-center mb-6 border-b pb-4 dark:border-gray-700">
-                    <span id="question-counter" class="bg-blue-100 text-blue-800 py-1 px-4 rounded-full font-bold">1-savol</span>
-                    <span id="score-counter" class="text-green-600 font-bold">Ball: 0</span>
-                </div>
-                <h3 id="question-text" class="text-xl font-semibold mb-8 leading-relaxed whitespace-pre-wrap"></h3>
-                <div id="options-container" class="space-y-4 mb-8"></div>
-                <div class="flex justify-end pt-4 border-t dark:border-gray-700">
-                    <button id="next-btn" onclick="nextQuestion()" disabled class="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl opacity-50 cursor-not-allowed">Keyingisi →</button>
-                </div>
+            <div id="mistakes-container" class="w-full bg-white dark:bg-gray-850 p-6 rounded-2xl shadow-lg hidden">
+                <h3 class="text-2xl font-bold mb-6 border-b pb-4 dark:border-gray-700 text-red-600 dark:text-red-400">Sizning xatolaringiz:</h3>
+                <div id="mistakes-list" class="space-y-6">
+                    </div>
             </div>
-
-            <div id="result-screen" class="hidden animate-fade-in text-center">
-                <h2 class="text-3xl font-bold mb-6">Natija</h2>
-                <div class="bg-blue-50 dark:bg-gray-700 p-8 rounded-3xl mb-8 border-2 border-blue-200">
-                    <p id="final-score" class="text-6xl font-black text-blue-600 dark:text-blue-400">0 / 200</p>
-                    <p id="percentage-text" class="text-xl mt-2 font-bold text-gray-600 dark:text-gray-300"></p>
-                </div>
-                <button onclick="location.reload()" class="bg-gray-800 text-white py-3 px-10 rounded-xl mb-6">Qaytadan ishlash</button>
-                <div id="mistakes-section" class="mt-8 text-left hidden">
-                    <h3 class="text-xl font-bold mb-4 text-red-500">Xatolar ustida ishlash:</h3>
-                    <div id="mistakes-container" class="space-y-4 max-h-80 overflow-y-auto pr-2"></div>
-                </div>
-            </div>
-
         </div>
+
     </main>
 
-    <script type="text/plain" id="raw-quiz-data">
+    <footer class="bg-gray-200 dark:bg-gray-800 text-center py-4 text-sm text-gray-600 dark:text-gray-400 mt-auto shadow-inner">
+        <p class="font-medium">Muallif: Safarboyev Umrbek</p>
+        <p>Urganch davlat pedagogika instituti</p>
+    </footer>
+
+    <script type="text/plain" id="raw-data">
 № 1. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 10, параграф 4. Уровень сложности: 2
 Построение произведения, расположение и взаимосвязь его частей, порядок изложения событий называется …
 A) Сюжетом
@@ -152,7 +184,7 @@ D) ода «Фелица» Г.Державина
 № 13. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 1. Уровень сложности: 2
 Кого из русских литераторов 18 века А.Пушкин назвал «сатиры смелым властелином» и «другом свободы».
 A) М.Ломоносова
-B) А.Радищевa
+B) А.Радищева
 C) Д.Фонвизина
 D) И.Крылова
 № 14. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 1. Уровень сложности: 2
@@ -311,6 +343,12 @@ A) В.К.Тредиаковский
 B) Г.Р.Державин
 C) М.В.Ломоносов
 D) Д.И.Фонвизин
+№ 147. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 2
+Кому из героев комедии «Недоросль» принадлежат эти слова: «Я отошел от двора без деревень, без лент, без чинов, да мое принес домой неповрежденно, мою душу, мою честь, мои правила».
+A) Правдин
+B) Милон
+C) Кутейкин
+D) Стародум
 № 40. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 2
 Укажите вариант, содержащий сведения из биографии Д.Фонвизина.
 A) Будучи 25 лет от роду, создал свою первую комедию «Бригадир».
@@ -324,7 +362,7 @@ B) Цыфиркин
 C) Кутейкин
 D) Вральман
 № 42. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 2
-Укажите вариант, в котором названы героев, выражающие непримиримо враждующие стороны добра и зла в комедии «Недоросль».
+Укажите вариант, в котором названы герои, выражающие непримиримо враждующие стороны добра и зла в комедии «Недоросль».
 A) Митрофан и Скотинин
 B) Правдин и Стародум
 C) Правдин и Милон
@@ -401,6 +439,12 @@ A) А.Сумароков
 B) М.Ломоносов
 C) Г.Державин
 D) А.Пушкин
+№ 163. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 1. Уровень сложности: 2
+Определите героя, произнесшего данные слова в поэме «Слово о полку Игореве»: «Лучше ведь убитым быть, чем плененным быть».
+A) Всеволод
+B) Игорь
+C) Святослав
+D) Лавр
 № 55. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 2
 Определите поэта, который «обращается к любезным ему наукам». В земное недро ты, Химия, проникни взора остротой, И что содержит в нем Россия, драги сокровища открой.
 A) А.Сумароков
@@ -544,7 +588,7 @@ D) Рудин, «Рудин»
 A) А.Пушкина
 B) Г.Державина
 C) Д.Фонвизина
-D) М.Ломоносовa
+D) М.Ломоносова
 № 79. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 3. Уровень сложности: 1
 Определите, кто из поэтов, борясь всю жизнь с пороком, считал, что «властители и судии» должны «всегда спасать от бед невинных», «исторгнуть бедных из оков».
 A) Г.Державин
@@ -677,10 +721,6 @@ A) Манилову
 B) Ростову
 C) Обломову
 D) Дубровскому
-
-**TO'G'RI JAVOBLAR KALITI (1-100)**
-1-B, 2-C, 3-A, 4-D, 5-A, 6-B, 7-D, 8-A, 9-B, 10-C, 11-D, 12-A, 13-C, 14-B, 15-D, 16-A, 17-B, 18-C, 19-D, 20-A, 21-C, 22-B, 23-D, 24-A, 25-C, 26-B, 27-C, 28-A, 29-B, 30-C, 31-D, 32-A, 33-C, 34-D, 35-C, 36-B, 37-A, 38-B, 39-C, 147-D, 40-A, 41-C, 42-D, 43-A, 44-B, 45-B, 46-C, 47-A, 48-B, 49-C, 50-C, 51-D, 52-A, 53-C, 54-B, 163-A, 55-D, 56-A, 57-C, 58-C, 59-A, 60-C, 61-A, 62-B, 63-C, 64-D, 65-A, 66-C, 67-D, 68-A, 69-B, 70-C, 71-D, 72-A, 73-B, 74-C, 75-A, 76-B, 77-C, 78-D, 79-A, 80-A, 81-B, 82-C, 83-D, 84-C, 85-D, 86-A, 87-B, 88-D, 89-D, 90-C, 91-A, 92-B, 93-D, 94-A, 95-C, 96-B, 97-B, 98-A, 99-B, 100-C.
-
 № 101. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 2
 Из какого произведения взят этот диалог : - Вы, верно, не здешние, - сказала она. – Точно так-с: я вчера только приехала из провинции. – У меня нет ни отца, ни матери. Я приехала подать просьбу государыне.
 A) «Обломов»
@@ -766,7 +806,7 @@ B) старые служаки
 C) прожигатели жизни
 D) служители порядка
 № 115. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 3
-Кто из литератур героев А.Пушкина написал эти строки: Но глаза, что мя пленили, Всеминутно предо мной; Они дух во мне смутили, Сокрушили мой покой.
+Кто из литературных героев А.Пушкина написал эти строки: Но глаза, что мя пленили, Всеминутно предо мной; Они дух во мне смутили, Сокрушили мой покой.
 A) Евгений Онегин
 B) Петр Гринев
 C) гусар Минский
@@ -790,7 +830,7 @@ B) Дикой–Кабанова
 C) Печорин–Грушницкий
 D) Онегин–Ленский
 № 119. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 9. Уровень сложности: 3
-Определите литератур героев – страстных любителей охоты.
+Определите литературных героев – страстных любителей охоты.
 A) Угрюм-Бурчеев («Дикий помещик»), Очумелов («Хамелеон»), Скотинин («Недоросль»)
 B) Максим Максимыч («Герой нашего времени»), Безухов («Война и мир»), Кудряш («Гроза»)
 C) Оболт-Оболдуев («Кому на Руси жить хорошо»), Троекуров («Дубровский»), Ноздрев («Мертвые души»)
@@ -827,8 +867,8 @@ C) Катя-А.Кирсанов
 D) Наталья-Рудин
 № 125. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 1
 Герой пьесы «Гроза» - механик-самоучка, отыскивающий вечный двигатель…
-A) Тихона
-B) Бориса
+A) Тихон
+B) Борис
 C) Шапкин
 D) Кулигин
 № 126. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 11. Уровень сложности: 2
@@ -1231,7 +1271,7 @@ D) «Поэт»
 К кому из помещиков Чичиков обращается «внутренне»: «Родился ли ты уж так медведем, или омедведила тебя захолустная жизнь…».
 A) Ноздреву
 B) Манилову
-C) Собакевич
+C) Собакевичу
 D) Коробочке
 № 193. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8. Уровень сложности: 2
 Портреты своих героев этот сатирик дает выразительно, раскрывая их духовную сущность. У одного из своих героев писатель рисует «слюнявое… все словно маслом подернутое лицо», «маслянисто-пронзительный голос» . Укажите автора, произведение и героя.
@@ -1281,177 +1321,225 @@ A) А.Грибоедов
 B) М.Лермонтов
 C) А.Пушкин
 D) И.Тургенев
-
+**TO'G'RI JAVOBLAR KALITI (1-100)**
+1-B, 2-C, 3-A, 4-D, 5-A, 6-B, 7-D, 8-A, 9-B, 10-C, 11-D, 12-A, 13-C, 14-B, 15-D, 16-A, 17-B, 18-C, 19-D, 20-A, 21-C, 22-B, 23-D, 24-A, 25-C, 26-B, 27-C, 28-A, 29-B, 30-C, 31-D, 32-A, 33-C, 34-D, 35-C, 36-B, 37-A, 38-B, 39-C, 147-D, 40-A, 41-C, 42-D, 43-A, 44-B, 45-B, 46-C, 47-A, 48-B, 49-C, 50-C, 51-D, 52-A, 53-C, 54-B, 163-A, 55-D, 56-A, 57-C, 58-C, 59-A, 60-C, 61-A, 62-B, 63-C, 64-D, 65-A, 66-C, 67-D, 68-A, 69-B, 70-C, 71-D, 72-A, 73-B, 74-C, 75-A, 76-B, 77-C, 78-D, 79-A, 80-A, 81-B, 82-C, 83-D, 84-C, 85-D, 86-A, 87-B, 88-D, 89-D, 90-C, 91-A, 92-B, 93-D, 94-A, 95-C, 96-B, 97-B, 98-A, 99-B, 100-C.
 **TO'G'RI JAVOBLAR KALITI (101-200)**
 101-D, 102-B, 103-C, 104-A, 105-D, 106-B, 107-C, 108-A, 109-D, 110-B, 111-C, 112-A, 113-D, 114-C, 115-B, 116-A, 117-D, 118-B, 119-C, 120-A, 121-D, 122-B, 123-C, 124-A, 125-D, 126-C, 127-A, 128-B, 129-D, 130-C, 131-A, 132-B, 133-D, 134-A, 135-C, 136-B, 137-D, 138-B, 139-A, 140-C, 141-D, 142-B, 143-A, 144-C, 145-D, 146-B, 147-A, 148-C, 149-A, 150-D, 151-B, 152-C, 153-B, 154-A, 155-D, 156-A, 157-C, 158-B, 159-D, 160-A, 161-C, 162-B, 163-D, 164-A, 165-C, 166-B, 167-D, 168-A, 169-C, 170-D, 171-B, 172-A, 173-C, 174-D, 175-B, 176-A, 177-C, 178-B, 179-D, 180-A, 181-C, 182-B, 183-D, 184-A, 185-C, 186-D, 187-B, 188-C, 189-A, 190-D, 191-B, 192-C, 193-A, 194-B, 195-D, 196-A, 197-C, 198-D, 199-B, 200-A.
     </script>
 
     <script>
+        // 1. Dastlabki sozlamalar va elementlar
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const startBtn = document.getElementById('start-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultsScreen = document.getElementById('results-screen');
+        
+        // Theme toggle logic
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            if(document.documentElement.classList.contains('dark')) {
+                themeIcon.textContent = '☀️';
+            } else {
+                themeIcon.textContent = '🌙';
+            }
+        });
+
+        // 2. Savollarni matndan avtomatik ajratib olish (Parser)
+        function parseQuestions() {
+            const rawText = document.getElementById('raw-data').textContent;
+            
+            // Javoblarni olish (Masalan: 1-B, 2-C)
+            const answers = {};
+            const answerRegex = /(\d+)-([A-D])/g;
+            let match;
+            while ((match = answerRegex.exec(rawText)) !== null) {
+                answers[match[1]] = match[2];
+            }
+
+            // Savollarni olish
+            const questions = [];
+            const qBlocks = rawText.split(/№\s*(\d+)\./).slice(1);
+            
+            for (let i = 0; i < qBlocks.length; i += 2) {
+                const id = qBlocks[i].trim();
+                const block = qBlocks[i+1];
+                
+                const aIdx = block.indexOf('A)');
+                const bIdx = block.indexOf('B)');
+                const cIdx = block.indexOf('C)');
+                const dIdx = block.indexOf('D)');
+                
+                if(aIdx > -1 && bIdx > -1 && cIdx > -1 && dIdx > -1) {
+                    const metaAndQ = block.substring(0, aIdx).trim();
+                    const firstNewline = metaAndQ.indexOf('\n');
+                    const meta = metaAndQ.substring(0, firstNewline).trim();
+                    const qText = metaAndQ.substring(firstNewline + 1).trim();
+                    
+                    const optA = block.substring(aIdx + 2, bIdx).trim();
+                    const optB = block.substring(bIdx + 2, cIdx).trim();
+                    const optC = block.substring(cIdx + 2, dIdx).trim();
+                    
+                    let optD_raw = block.substring(dIdx + 2).trim();
+                    const toghriIdx = optD_raw.indexOf('**TO\'G\'RI');
+                    if (toghriIdx > -1) optD_raw = optD_raw.substring(0, toghriIdx).trim();
+                    
+                    // Faqat javobi bor savollarni qo'shish
+                    if(answers[id]) {
+                        questions.push({
+                            id: id,
+                            meta: meta,
+                            question: qText,
+                            options: { 'A': optA, 'B': optB, 'C': optC, 'D': optD_raw },
+                            correct: answers[id]
+                        });
+                    }
+                }
+            }
+            return questions;
+        }
+
+        // Test ma'lumotlari
         let quizData = [];
-        let currentQuestionIndex = 0;
+        let currentIndex = 0;
         let score = 0;
         let mistakes = [];
-        let selectedOption = null;
+        let hasAnswered = false;
 
-        function initData() {
-            const rawText = document.getElementById('raw-quiz-data').textContent;
-            
-            // Javoblarni kalitdan ajratib olish (1-200)
-            const answersMap = {};
-            const keyMatches = rawText.match(/(\d+)-([A-D])/g);
-            if (keyMatches) {
-                keyMatches.forEach(m => {
-                    const [num, letter] = m.split('-');
-                    answersMap[parseInt(num)] = letter.trim();
-                });
+        // Dasturni yuklash
+        window.onload = () => {
+            quizData = parseQuestions();
+            document.getElementById('total-q-count').textContent = quizData.length;
+            document.getElementById('quiz-total-count').textContent = quizData.length;
+        };
+
+        // 3. Test mantig'i
+        startBtn.addEventListener('click', () => {
+            if(quizData.length === 0) {
+                alert("Kechirasiz, savollar topilmadi. Raw Data qismini tekshiring.");
+                return;
             }
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            quizScreen.classList.add('flex');
+            loadQuestion();
+        });
 
-            // Savollarni bo'laklash
-            const blocks = rawText.split(/№\s*/).filter(b => b.trim() && !b.includes('KALITI'));
-            
-            quizData = blocks.map(block => {
-                const idMatch = block.match(/^(\d+)\./);
-                if (!idMatch) return null;
-
-                const id = parseInt(idMatch[1]);
-                
-                // Savol matnini ajratib olish ("A)" gacha bo'lgan joy)
-                const textSplit = block.split(/A\)/);
-                if(textSplit.length < 2) return null;
-                
-                let text = textSplit[0].replace(/^\d+\.\s*/, '').trim();
-
-                const options = {};
-                const optA = block.match(/A\)\s*([^\n]+)/)?.[1]?.trim();
-                const optB = block.match(/B\)\s*([^\n]+)/)?.[1]?.trim();
-                const optC = block.match(/C\)\s*([^\n]+)/)?.[1]?.trim();
-                const optD = block.match(/D\)\s*([^\n]+)/)?.[1]?.trim();
-
-                if (optA) options.A = optA;
-                if (optB) options.B = optB;
-                if (optC) options.C = optC;
-                if (optD) options.D = optD;
-
-                return {
-                    id,
-                    text,
-                    options,
-                    correctAnswer: answersMap[id]
-                };
-            }).filter(q => q && q.correctAnswer);
-
-            document.getElementById('total-questions-text').innerText = `Bazada ${quizData.length} ta savol tayyor!`;
-        }
-
-        function startQuiz() {
-            document.getElementById('start-screen').classList.add('hidden');
-            document.getElementById('quiz-screen').classList.remove('hidden');
-            currentQuestionIndex = 0;
-            score = 0;
-            mistakes = [];
-            showQuestion();
-        }
-
-        function showQuestion() {
-            selectedOption = null;
-            const nextBtn = document.getElementById('next-btn');
+        function loadQuestion() {
+            hasAnswered = false;
             nextBtn.disabled = true;
-            nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            nextBtn.classList.add('cursor-not-allowed', 'opacity-50');
+            nextBtn.classList.remove('hover:bg-indigo-700');
 
-            const q = quizData[currentQuestionIndex];
-            document.getElementById('question-counter').innerText = `${currentQuestionIndex + 1} / ${quizData.length}`;
-            document.getElementById('question-text').innerText = q.text;
+            const currentQ = quizData[currentIndex];
+            
+            document.getElementById('current-q-num').textContent = currentIndex + 1;
+            document.getElementById('q-meta').textContent = currentQ.meta;
+            document.getElementById('question-text').textContent = currentQ.question;
 
-            const container = document.getElementById('options-container');
-            container.innerHTML = '';
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
 
-            ['A', 'B', 'C', 'D'].forEach(key => {
-                if (q.options[key]) {
-                    const btn = document.createElement('button');
-                    btn.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 bg-white dark:bg-gray-800 flex items-center";
-                    btn.innerHTML = `<span class="font-bold mr-4 text-blue-600">${key})</span> ${q.options[key]}`;
-                    btn.onclick = () => selectOption(key, btn);
-                    container.appendChild(btn);
-                }
-            });
-            window.scrollTo(0, 0);
+            for (const [key, value] of Object.entries(currentQ.options)) {
+                const optBtn = document.createElement('div');
+                optBtn.className = 'option-btn border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-lg flex items-start gap-4';
+                optBtn.innerHTML = `
+                    <span class="font-bold text-indigo-600 dark:text-indigo-400 min-w-[24px]">${key})</span>
+                    <span class="flex-grow">${value}</span>
+                `;
+                optBtn.onclick = () => checkAnswer(key, optBtn);
+                optionsContainer.appendChild(optBtn);
+            }
         }
 
-        function selectOption(key, btn) {
-            if (selectedOption) return;
-            selectedOption = key;
-            const q = quizData[currentQuestionIndex];
-            const isCorrect = key === q.correctAnswer;
+        function checkAnswer(selectedKey, selectedBtn) {
+            if(hasAnswered) return;
+            hasAnswered = true;
+            
+            const currentQ = quizData[currentIndex];
+            const optionsBtns = document.getElementById('options-container').children;
 
-            const allBtns = document.querySelectorAll('.option-btn');
-            allBtns.forEach(b => {
-                const bText = b.innerText.trim();
-                const bKey = bText.charAt(0);
-                
-                if (bKey === q.correctAnswer) {
-                    b.classList.add('border-green-500', 'bg-green-50', 'dark:bg-green-900/30');
-                } else if (bKey === key) {
-                    b.classList.add('border-red-500', 'bg-red-50', 'dark:bg-red-900/30');
-                }
-                b.classList.add('opacity-50');
-            });
-            btn.classList.remove('opacity-50');
-
-            if (isCorrect) {
+            if (selectedKey === currentQ.correct) {
                 score++;
+                selectedBtn.classList.add('correct-ans');
             } else {
+                selectedBtn.classList.add('wrong-ans');
                 mistakes.push({
-                    id: q.id,
-                    q: q.text,
-                    user: key,
-                    correct: q.correctAnswer,
-                    userVal: q.options[key],
-                    correctVal: q.options[q.correctAnswer]
+                    q: currentQ,
+                    userAns: selectedKey
                 });
+                // To'g'risini yashil qilish
+                for(let btn of optionsBtns) {
+                    if(btn.textContent.includes(`${currentQ.correct})`)) {
+                        btn.classList.add('correct-ans');
+                    }
+                }
             }
 
-            const nextBtn = document.getElementById('next-btn');
+            // Lock other options
+            for(let btn of optionsBtns) {
+                btn.classList.remove('cursor-pointer', 'hover:bg-indigo-50', 'dark:hover:bg-indigo-900/40');
+            }
+
+            // Enable Next button
             nextBtn.disabled = false;
-            nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            document.getElementById('score-counter').innerText = `Ball: ${score}`;
+            nextBtn.classList.remove('cursor-not-allowed', 'opacity-50');
+            nextBtn.classList.add('hover:bg-indigo-700');
         }
 
-        function nextQuestion() {
-            currentQuestionIndex++;
-            if (currentQuestionIndex < quizData.length) {
-                showQuestion();
+        nextBtn.addEventListener('click', () => {
+            currentIndex++;
+            if(currentIndex < quizData.length) {
+                loadQuestion();
             } else {
                 showResults();
             }
-        }
+        });
 
+        // 4. Natijalar ekrani
         function showResults() {
-            document.getElementById('quiz-screen').classList.add('hidden');
-            const resScreen = document.getElementById('result-screen');
-            resScreen.classList.remove('hidden');
-            
-            document.getElementById('final-score').innerText = `${score} / ${quizData.length}`;
-            const percent = Math.round((score / quizData.length) * 100);
-            document.getElementById('percentage-text').innerText = `${percent}% o'zlashtirish ko'rsatkichi`;
+            quizScreen.classList.remove('flex');
+            quizScreen.classList.add('hidden');
+            resultsScreen.classList.remove('hidden');
+            resultsScreen.classList.add('flex');
 
-            if (mistakes.length > 0) {
-                document.getElementById('mistakes-section').classList.remove('hidden');
-                const cont = document.getElementById('mistakes-container');
-                cont.innerHTML = mistakes.map(m => `
-                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-red-500 shadow-sm">
-                        <p class="font-bold mb-2">№${m.id}. ${m.q}</p>
-                        <p class="text-sm text-red-600 font-medium">Sizning javobingiz: ${m.user}) ${m.userVal}</p>
-                        <p class="text-sm text-green-600 font-bold">To'g'ri javob: ${m.correct}) ${m.correctVal}</p>
-                    </div>
-                `).join('');
+            document.getElementById('score-correct').textContent = score;
+            document.getElementById('score-total').textContent = quizData.length;
+
+            const mistakesContainer = document.getElementById('mistakes-container');
+            const mistakesList = document.getElementById('mistakes-list');
+            mistakesList.innerHTML = '';
+
+            if(mistakes.length > 0) {
+                mistakesContainer.classList.remove('hidden');
+                mistakes.forEach((m, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 text-left';
+                    div.innerHTML = `
+                        <p class="font-bold mb-2">№${m.q.id}. ${m.q.question}</p>
+                        <p class="text-red-500 dark:text-red-400 mb-1">❌ Sizning javobingiz: <span class="font-medium">${m.q.options[m.userAns]}</span></p>
+                        <p class="text-green-600 dark:text-green-400">✅ To'g'ri javob: <span class="font-medium">${m.q.options[m.q.correct]}</span></p>
+                    `;
+                    mistakesList.appendChild(div);
+                });
+            } else {
+                mistakesContainer.classList.add('hidden');
             }
         }
 
-        document.getElementById('theme-toggle').onclick = () => {
-            document.documentElement.classList.toggle('dark');
-        };
-
-        window.onload = initData;
+        restartBtn.addEventListener('click', () => {
+            currentIndex = 0;
+            score = 0;
+            mistakes = [];
+            resultsScreen.classList.remove('flex');
+            resultsScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            startScreen.classList.add('flex');
+        });
     </script>
 </body>
 </html>
