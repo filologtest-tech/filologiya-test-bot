@@ -1,133 +1,505 @@
 <!DOCTYPE html>
-<html lang="uz" class="dark">
+<html lang="uz" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rus adabiyoti tarixi - Interaktiv Test</title>
+    <title>Rus Adabiyoti Tarixi - Quiz</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    colors: {
-                        gray: {
-                            850: '#1f2937',
-                            900: '#111827',
-                        }
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
                     }
                 }
             }
         }
     </script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .option-btn { transition: all 0.2s ease; }
-        .correct-ans { background-color: #dcfce7 !important; border-color: #22c55e !important; color: #166534 !important; }
-        .wrong-ans { background-color: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b !important; }
-        
-        .dark .correct-ans { background-color: #064e3b !important; border-color: #10b981 !important; color: #d1fae5 !important; }
-        .dark .wrong-ans { background-color: #7f1d1d !important; border-color: #ef4444 !important; color: #fee2e2 !important; }
+        body { transition: background-color 0.3s ease, color 0.3s ease; }
+        .option-btn { transition: all 0.2s ease-in-out; }
     </style>
-</head>
-<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 min-h-screen flex flex-col transition-colors duration-300">
+    <script>
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let mistakes = [];
+        let hasAnswered = false;
 
-    <header class="bg-white dark:bg-gray-850 shadow-md p-4 flex justify-between items-center sticky top-0 z-10">
-        <h1 class="text-xl md:text-2xl font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">
-            RUS ADABIYOTI TARIXI
-        </h1>
-        <button id="theme-toggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-            <span id="theme-icon" class="text-xl">☀️</span>
-        </button>
-    </header>
+        // Barcha yuklanishlar tugagach ishga tushadi
+        window.onload = function() {
+            initQuiz();
+        };
 
-    <main class="flex-grow container mx-auto px-4 py-8 max-w-3xl flex flex-col">
-        
-        <div id="start-screen" class="flex flex-col items-center justify-center flex-grow space-y-6 text-center animate-fade-in">
-            <div class="bg-white dark:bg-gray-850 p-8 rounded-2xl shadow-lg w-full">
-                <h2 class="text-3xl font-bold mb-4">Testga xush kelibsiz!</h2>
-                <p class="text-lg mb-6 text-gray-600 dark:text-gray-400">
-                    Ushbu interaktiv test orqali rus adabiyoti tarixi bo'yicha bilimlaringizni sinab ko'ring.
-                </p>
-                <div class="inline-block bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 px-4 py-2 rounded-full font-medium mb-8">
-                    Jami savollar soni: <span id="total-q-count">0</span> ta
-                </div>
-                <button id="start-btn" class="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 text-lg">
-                    Testni boshlash
-                </button>
-            </div>
-        </div>
+        // Savollar va kalitlarni avtomatik ajratib olish (Parsing)
+        function initQuiz() {
+            const qElem = document.getElementById('raw-questions');
+            const kElem = document.getElementById('raw-keys');
+            if (!qElem || !kElem) return;
 
-        <div id="quiz-screen" class="hidden flex-col flex-grow animate-fade-in">
-            <div class="bg-white dark:bg-gray-850 p-6 md:p-8 rounded-2xl shadow-lg w-full mb-6 relative">
+            let qData = qElem.textContent.trim();
+            let kData = kElem.textContent.trim();
+
+            // Kalitlarni o'qib olish
+            const keyMap = {};
+            const keyRegex = /(\d+)-([A-D])/g;
+            let match;
+            while ((match = keyRegex.exec(kData)) !== null) {
+                keyMap[match[1]] = match[2];
+            }
+
+            // Savollarni o'qish va ajratish
+            const blocks = qData.split(/\n(?=№?\s*\d+\.)/);
+            
+            blocks.forEach(block => {
+                if (!block.trim()) return;
+                const blockMatch = block.match(/^№?\s*(\d+)\.\s*([\s\S]+)/);
+                if (blockMatch) {
+                    const qNum = blockMatch[1];
+                    const content = blockMatch[2];
+
+                    // Variantlarni izlash A) ... B) ... C) ... D) ...
+                    const optRegex = /A\)([\s\S]+?)B\)([\s\S]+?)C\)([\s\S]+?)D\)([\s\S]+)$/i;
+                    const optMatch = content.match(optRegex);
+
+                    if (optMatch) {
+                        const qText = content.substring(0, optMatch.index).trim();
+                        const correctLetter = keyMap[qNum];
+                        const letterMap = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
+
+                        if (correctLetter && letterMap[correctLetter] !== undefined) {
+                            questions.push({
+                                num: parseInt(qNum),
+                                q: "№ " + qNum + ". " + qText,
+                                options: [
+                                    "A) " + optMatch[1].trim(),
+                                    "B) " + optMatch[2].trim(),
+                                    "C) " + optMatch[3].trim(),
+                                    "D) " + optMatch[4].trim()
+                                ],
+                                correct: letterMap[correctLetter]
+                            });
+                        }
+                    }
+                }
+            });
+
+            // Raqami bo'yicha tartiblash
+            // questions.sort((a, b) => a.num - b.num);
+
+            document.getElementById('total-q-count').innerText = questions.length;
+            document.getElementById('total-q-num').innerText = questions.length;
+        }
+
+        // Qorong'u rejimni yoqish/o'chirish
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        function startQuiz() {
+            if(questions.length === 0) {
+                alert("Savollar yuklanmadi. Iltimos sahifani yangilang.");
+                return;
+            }
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            hasAnswered = false;
+            document.getElementById('next-btn').disabled = true;
+            document.getElementById('current-q-num').innerText = currentQuestionIndex + 1;
+            document.getElementById('current-score').innerText = score;
+
+            const q = questions[currentQuestionIndex];
+            document.getElementById('question-text').innerText = q.q;
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            q.options.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.className = `option-btn w-full text-left p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 font-medium text-[16px] sm:text-lg cursor-pointer shadow-sm`;
+                btn.innerText = option;
+                btn.onclick = () => selectOption(index, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function selectOption(selectedIndex, btnElement) {
+            if (hasAnswered) return;
+            hasAnswered = true;
+            document.getElementById('next-btn').disabled = false;
+
+            const q = questions[currentQuestionIndex];
+            const allButtons = document.querySelectorAll('.option-btn');
+            
+            allButtons.forEach(btn => {
+                btn.classList.remove('hover:bg-blue-50', 'dark:hover:bg-gray-700', 'cursor-pointer');
+                btn.classList.add('cursor-not-allowed', 'opacity-70');
+            });
+
+            if (selectedIndex === q.correct) {
+                btnElement.classList.remove('border-gray-200', 'dark:border-gray-700', 'opacity-70');
+                btnElement.classList.add('border-green-500', 'bg-green-100', 'dark:bg-green-900', 'text-green-800', 'dark:text-green-100', 'opacity-100');
+                score++;
+                document.getElementById('current-score').innerText = score;
+            } else {
+                btnElement.classList.remove('border-gray-200', 'dark:border-gray-700', 'opacity-70');
+                btnElement.classList.add('border-red-500', 'bg-red-100', 'dark:bg-red-900', 'text-red-800', 'dark:text-red-100', 'opacity-100');
                 
-                <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-                    <span class="text-sm font-semibold text-gray-500 dark:text-gray-400" id="q-meta"></span>
-                    <span class="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 py-1 px-3 rounded-full text-sm font-bold shadow-sm">
-                        Savol: <span id="current-q-num">1</span> / <span id="quiz-total-count">0</span>
-                    </span>
-                </div>
+                const correctBtn = allButtons[q.correct];
+                correctBtn.classList.remove('border-gray-200', 'dark:border-gray-700', 'opacity-70');
+                correctBtn.classList.add('border-green-500', 'bg-green-100', 'dark:bg-green-900', 'text-green-800', 'dark:text-green-100', 'opacity-100');
 
-                <h3 id="question-text" class="text-xl md:text-2xl font-medium mb-8 leading-relaxed"></h3>
+                mistakes.push({
+                    question: q.q,
+                    userAns: q.options[selectedIndex],
+                    correctAns: q.options[q.correct]
+                });
+            }
+        }
 
-                <div id="options-container" class="space-y-4 mb-8">
-                    </div>
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                renderQuestion();
+            } else {
+                showResults();
+            }
+        }
 
-                <div class="flex justify-end">
-                    <button id="next-btn" disabled class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:dark:bg-gray-600 text-white font-bold rounded-xl shadow transition-all cursor-not-allowed opacity-50">
-                        Keyingisi ➔
-                    </button>
-                </div>
+        function showResults() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-total').innerText = questions.length;
+
+            const mistakesContainer = document.getElementById('mistakes-container');
+            mistakesContainer.innerHTML = '';
+
+            if (mistakes.length === 0) {
+                document.getElementById('mistakes-section').innerHTML = `<p class="text-center text-green-600 dark:text-green-400 font-bold text-xl">Tabriklaymiz! Barcha javoblaringiz to'g'ri!</p>`;
+            } else {
+                mistakes.forEach((m) => {
+                    mistakesContainer.innerHTML += `
+                        <div class="bg-red-50 dark:bg-gray-700 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm text-left">
+                            <p class="font-bold text-gray-800 dark:text-gray-100 mb-2 whitespace-pre-line">${m.question}</p>
+                            <p class="text-red-600 dark:text-red-400 text-sm mb-1"><span class="font-semibold">Sizning javobingiz:</span> ${m.userAns}</p>
+                            <p class="text-green-600 dark:text-green-400 text-sm font-semibold"><span>To'g'ri javob:</span> ${m.correctAns}</p>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            mistakes = [];
+            
+            document.getElementById('mistakes-section').innerHTML = `
+                <h3 class="text-2xl font-bold mb-6 text-red-500 flex items-center justify-center sm:justify-start"><svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> Qilingan Xatolar</h3>
+                <div id="mistakes-container" class="space-y-6 max-h-[500px] overflow-y-auto pr-2"></div>
+            `;
+
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <button onclick="toggleDarkMode()" class="absolute top-4 right-4 p-2 bg-gray-200 dark:bg-gray-700 rounded-full shadow hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+        <svg id="moon-icon" class="w-6 h-6 hidden dark:block text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+        <svg id="sun-icon" class="w-6 h-6 block dark:hidden text-gray-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4.22 2.32a1 1 0 011.415 0l.707.707a1 1 0 01-1.414 1.415l-.708-.708a1 1 0 010-1.414zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zm-2.32 4.22a1 1 0 010 1.415l-.707.707a1 1 0 01-1.415-1.414l.707-.707a1 1 0 011.415 0zM10 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm-4.22-2.32a1 1 0 01-1.415 0l-.707-.707a1 1 0 011.414-1.415l.708.708a1 1 0 010 1.414zM2 10a1 1 0 011-1h1a1 1 0 110 2H3a1 1 0 01-1-1zm2.32-4.22a1 1 0 010-1.415l.707-.707a1 1 0 011.415 1.414l-.707.707a1 1 0 01-1.415 0zM10 5a5 5 0 100 10 5 5 0 000-10z" clip-rule="evenodd"></path></svg>
+    </button>
+
+    <div class="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+        
+        <div id="start-screen" class="p-8 sm:p-12 text-center">
+            <h1 class="text-3xl sm:text-5xl font-extrabold text-blue-700 dark:text-blue-400 mb-6 tracking-wide uppercase">RUS ADABIYOTI TARIXI</h1>
+            <p class="text-lg text-gray-600 dark:text-gray-300 mb-8">Ushbu interaktiv test dasturi orqali bilimingizni sinab ko'ring. Barcha javoblar darhol tekshiriladi.</p>
+            <div class="inline-block bg-blue-50 dark:bg-gray-700 px-6 py-4 rounded-lg mb-8 shadow-inner">
+                <p class="text-xl font-semibold"><span id="total-q-count">0</span> ta savol yuklandi</p>
             </div>
+            <br>
+            <button onclick="startQuiz()" class="w-full sm:w-auto px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all text-xl">
+                Testni boshlash
+            </button>
         </div>
 
-        <div id="results-screen" class="hidden flex-col items-center flex-grow animate-fade-in w-full">
-            <div class="bg-white dark:bg-gray-850 p-8 rounded-2xl shadow-lg w-full text-center mb-6">
-                <h2 class="text-3xl font-bold mb-2">Test yakunlandi!</h2>
-                <div class="text-6xl my-6">🏆</div>
-                <p class="text-xl font-medium mb-2">Umumiy ball:</p>
-                <p class="text-4xl font-black text-indigo-600 dark:text-indigo-400 mb-8">
-                    <span id="score-correct">0</span> / <span id="score-total">0</span>
-                </p>
-                <button id="restart-btn" class="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all">
-                    Qaytadan ishlash
+        <div id="quiz-screen" class="p-6 sm:p-10 hidden">
+            <div class="flex justify-between items-center mb-6 border-b dark:border-gray-700 pb-4">
+                <span class="text-lg font-bold text-gray-500 dark:text-gray-400">Savol <span id="current-q-num" class="text-blue-600 dark:text-blue-400">1</span> / <span id="total-q-num">100</span></span>
+                <span class="text-sm font-semibold bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full">Ball: <span id="current-score" class="text-green-600 dark:text-green-400">0</span></span>
+            </div>
+            
+            <h2 id="question-text" class="text-lg sm:text-xl font-medium mb-8 leading-relaxed whitespace-pre-line text-left">Savol matni...</h2>
+            
+            <div id="options-container" class="space-y-4">
+                </div>
+
+            <div class="mt-10 flex justify-end">
+                <button id="next-btn" onclick="nextQuestion()" disabled class="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow transition-all">
+                    Keyingisi ➔
                 </button>
             </div>
+        </div>
 
-            <div id="mistakes-container" class="w-full bg-white dark:bg-gray-850 p-6 rounded-2xl shadow-lg hidden">
-                <h3 class="text-2xl font-bold mb-6 border-b pb-4 dark:border-gray-700 text-red-600 dark:text-red-400">Sizning xatolaringiz:</h3>
-                <div id="mistakes-list" class="space-y-6">
+        <div id="result-screen" class="p-6 sm:p-10 hidden">
+            <div class="text-center mb-10">
+                <h2 class="text-4xl font-extrabold text-gray-800 dark:text-white mb-4">Test Yakunlandi!</h2>
+                <div class="inline-block p-6 rounded-full bg-blue-50 dark:bg-gray-700 border-4 border-blue-500 dark:border-blue-400 shadow-lg">
+                    <p class="text-xl text-gray-600 dark:text-gray-300">Umumiy ball</p>
+                    <p class="text-5xl font-black text-blue-600 dark:text-blue-400"><span id="final-score">0</span> / <span id="final-total">0</span></p>
+                </div>
+            </div>
+
+            <div id="mistakes-section" class="mb-10">
+                <h3 class="text-2xl font-bold mb-6 text-red-500 flex items-center justify-center sm:justify-start"><svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> Qilingan Xatolar</h3>
+                <div id="mistakes-container" class="space-y-6 max-h-[500px] overflow-y-auto pr-2">
                     </div>
+            </div>
+
+            <div class="text-center">
+                <button onclick="restartQuiz()" class="px-10 py-4 bg-gray-800 dark:bg-gray-600 hover:bg-gray-900 dark:hover:bg-gray-500 text-white font-bold rounded-xl shadow-lg transition-all text-lg flex items-center justify-center mx-auto">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Qaytadan ishlash
+                </button>
             </div>
         </div>
 
-    </main>
+    </div>
 
-    <footer class="bg-gray-200 dark:bg-gray-800 text-center py-4 text-sm text-gray-600 dark:text-gray-400 mt-auto shadow-inner">
-        <p class="font-medium">Muallif: Safarboyev Umrbek</p>
-        <p>Urganch davlat pedagogika instituti</p>
-    </footer>
+<script type="text/template" id="raw-keys">
+1-A
+2-B
+3-C
+4-D
+5-A
+6-B
+7-C
+8-D
+9-A
+10-B
+11-C
+12-D
+13-A
+14-B
+15-C
+16-D
+17-A
+18-B
+19-C
+20-D
+21-A
+22-B
+23-C
+24-D
+25-A
+26-B
+27-C
+28-D
+29-A
+30-B
+31-C
+32-D
+33-A
+34-B
+35-C
+36-D
+37-A
+38-B
+39-C
+147-D
+40-A
+41-B
+42-C
+43-D
+44-A
+45-B
+46-C
+47-D
+48-A
+49-B
+50-C
+51-D
+52-A
+53-B
+54-C
+163-D
+55-A
+56-B
+57-C
+58-D
+59-A
+60-B
+61-C
+62-D
+63-A
+64-B
+65-C
+66-D
+67-A
+68-B
+69-C
+70-D
+71-A
+72-B
+73-C
+74-D
+75-A
+76-B
+77-C
+78-D
+79-A
+80-B
+81-C
+82-D
+83-A
+84-B
+85-C
+86-D
+87-A
+88-B
+89-C
+90-D
+91-A
+92-B
+93-C
+94-D
+95-A
+96-B
+97-C
+98-D
+99-A
+100-B
+101-A
+102-B
+103-C
+104-D
+105-A
+106-B
+107-C
+108-D
+109-A
+110-B
+111-C
+112-D
+113-A
+114-B
+115-C
+116-D
+117-A
+118-B
+119-C
+120-D
+121-A
+122-B
+123-C
+124-D
+125-A
+126-B
+127-C
+128-D
+129-A
+130-B
+131-C
+132-D
+133-A
+134-B
+135-C
+136-D
+137-A
+138-B
+139-C
+140-D
+141-A
+142-B
+143-C
+144-D
+145-A
+146-B
+147-C
+148-D
+149-A
+150-B
+151-C
+152-D
+153-A
+154-B
+155-C
+156-D
+157-A
+158-B
+159-C
+160-D
+161-A
+162-B
+163-C
+164-D
+165-A
+166-B
+167-C
+168-D
+169-A
+170-B
+171-C
+172-D
+173-A
+174-B
+175-C
+176-D
+177-A
+178-B
+179-C
+180-D
+181-A
+182-B
+183-C
+184-D
+185-A
+186-B
+187-C
+188-D
+189-A
+190-B
+191-C
+192-D
+193-A
+194-B
+195-C
+196-D
+197-A
+198-B
+199-C
+200-D
+</script>
 
-    <script type="text/plain" id="raw-data">
+<script type="text/template" id="raw-questions">
 № 1. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 10, параграф 4. Уровень сложности: 2
 Построение произведения, расположение и взаимосвязь его частей, порядок изложения событий называется …
-A) Сюжетом
-B) Композицией
+A) Композицией
+B) Сюжетом
 C) Темой
 D) Идеей
 № 2. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 4. Уровень сложности: 2
 Укажите произведение, основанное на конкретных исторических событиях.
 A) «Палата №6» А.Чехова
-B) «Ревизор» Н.Гоголя
-C) «Слово о полку Игореве»
+B) «Слово о полку Игореве»
+C) «Ревизор» Н.Гоголя
 D) «Собачье сердце»
 № 3. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 4. Уровень сложности: 3
 В начале 90-х гг. 18 века А.Мусин-Пушкин приобрел в монастыре Ярославля рукопись, в котором он обнаружил уникальное произведение. Укажите это произведение.
-A) «Слово о полку Игореве»
+A) «Садко»
 B) «Святогор»
-C) «Садко»
+C) «Слово о полку Игореве»
 D) «Илья и Калин-царь»
-№ 4. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 4. Уровень сложности: 2
+№ 4. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 4 .Уровень сложности: 2
 Из какого произведения этот отрывок. Ярослава все внуки и Всеслава! Склоните стяги свои, вложите в ножны свои мечи, ибо лишились вы славы дедов…
 A) «Повесть временных лет»
 B) «Руслан и Людмила»
@@ -135,76 +507,76 @@ C) «Садко»
 D) «Слово о полку Игореве»
 № 5. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 2. Уровень сложности: 2
 Так! – весь я не умру, но часть меня большая, от тлена убежав, по смерти станет жить. Кто автор этих строк.
-A) М.Ломоносов
+A) Г.Державин
 B) А.Радищев
-C) Г.Державин
-D) В.Жуковский
-№ 6. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 3. Уровень сложности: 2
-Кто из поэтов 18 в. призывал «властителей и судий» справедливо вершить свои дела, "Ваш долг есть: сохранять законы, на лица сильных не взирать, Без помощи, без обороны сирот и вдов не оставлять."
-A) К.Рылеев
-B) Г.Державин
 C) М.Ломоносов
+D) В.Жуковский
+№ 6. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 3 Уровень сложности: 2
+Кто из поэтов 18 в. призывал «властителей и судий» справедливо вершить свои дела. Ваш долг есть: сохранять законы, на лица сильных не взирать, Без помощи, без обороны  сирот и вдов не оставлять.
+A) М.Ломоносов
+B) Г.Державин
+C) К.Рылеев
 D) А.Радищев
 № 7. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 5. Уровень сложности: 1
-В каком из своих произведений М.Ломоносов с похвалою говорит о правление Петра Первого, при котором «… божественны науки чрез горы… в Россию простирали руки».
-A) «Разговор с Анакреонтом»
-B) «К статуе Петра Великого»
-C) «Петр Великий»
-D) «Ода на день восшествия на всероссийский престол императрицы Елисаветы, 1747 г.»
+В каком из своих произведений М.Ломоносов с похвалою говорит о правление Петра Первого, при котором «… божественны науки чрез горы…  в Россию простирали руки».
+A) «К статуе Петра Великого»
+B) «Разговор с Анакреонтом»
+C) «Ода на день восшествия на всероссийский престол императрицы Елисаветы, 1747 г.»
+D) «Петр Великий»
 № 8. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 9. Уровень сложности: 1
 Чей жизненный путь отмечен следующими вехами: учеба в Пажеском корпусе и Лейпциге, служба пажом при императрице, в Сенате, на таможне, арестован, смертная казнь заменена ссылкой в Сибирь, вернувшись, через 5 лет покончил с собой.
-A) А.Радищева
-B) Н.Карамзина
+A) Н.Карамзина
+B) Д.Фонвизина
 C) Г.Державина
-D) Д.Фонвизина
+D) А.Радищева
 № 9. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 9. Уровень сложности: 2
 Кто из русских литераторов, написавший книгу, опасную для правительства, с гневом обличая власть имущих, сказал: «самодержавство есть наипротивнейшее состояние».
-A) А.Пушкин
-B) А.Радищев
+A) А.Радищев
+B) А.Пушкин
 C) К.Рылеев
 D) В.Жуковский
 № 10. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 9. Уровень сложности: 2
 Образно характеризуя русское самодержавие, писатель предварил свое произведение строками из поэмы В.Тредиаковского «Телемахида»: «Чудище обло, озорно, стозевно и лайяй». О каком произведении идет речь.
-A) А.Пушкин «Выстрел»
-B) Н.Гоголь «Шинель»
-C) А.Радищев «Путешествие из Петербурга в Москву»
+A) Н.Гоголь «Шинель»
+B) А.Радищев «Путешествие из Петербурга в Москву»
+C) А.Пушкин «Выстрел»
 D) Д.Фонвизин «Недоросль»
 № 11. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 9. Уровень сложности: 3
 Из какой главы книги «Путешествие из Петербурга в Москву» эти строки: «Жестокосердный помещик! Ты собираешь и то, что тебе не надобно, несмотря на то, что неприкрытая нагота твоих крестьян тебе в обвинение будет».
-A) «Торжок»
-B) «Валдаи»
-C) «Любани»
-D) «Пешки»
+A) «Любани»
+B) «Торжок»
+C) «Пешки»
+D) «Валдаи»
 № 12. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 9. Уровень сложности: 2
 Читая оду, в которой поэт приветствует победу американцев и создание Соединенных Штатов Америки, Екатерина 2 признала ее «совершенно явно и ясно бунтовской, где царям грозится плахою». Что это за ода.
-A) ода «Вольность» А.Радищева
-B) ода «Вольность» А.Пушкина
-C) «Ода господина Руссо» М.Ломоносова
-D) ода «Фелица» Г.Державина
+A) «Ода господина Руссо» М.Ломоносова
+B) ода «Фелица» Г.Державина
+C) ода «Вольность» А.Пушкина
+D) ода «Вольность» А.Радищева
 № 13. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 1. Уровень сложности: 2
 Кого из русских литераторов 18 века А.Пушкин назвал «сатиры смелым властелином» и «другом свободы».
-A) М.Ломоносова
-B) А.Радищева
-C) Д.Фонвизина
+A) Д.Фонвизина
+B) М.Ломоносова
+C) А.Радищева
 D) И.Крылова
 № 14. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 1. Уровень сложности: 2
 Кто из русских писателей является автором «Всеобщей придворной грамматики».
-A) М.Ломоносов
+A) И.Крылов
 B) Д.Фонвизин
-C) А.Радищев
-D) И.Крылов
+C) М.Ломоносов
+D) А.Радищев
 № 15. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 1. Уровень сложности: 2
 О каком из перечисленных драматических произведений можно сказать, что в нем «наказан был порок, добру достойный был венок».
 A) «Ревизор» Н.Гоголя
 B) «Гроза» А.Островского
-C) «Вишневый сад» А.Чехова
-D) «Недоросль» Д.Фонвизина
+C) «Недоросль» Д.Фонвизина
+D) «Вишневый сад» А.Чехова
 № 16. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 2. Уровень сложности: 1
 Где разворачивается действие комедии Д.Фонвизина «Недоросль».
-A) в доме Простаковых в Петербурге
-B) в деревне Простаковых
-C) в доме Стародума
-D) в имении Софьи
+A) в доме Стародума
+B) в доме Простаковых в Петербурге
+C) в имении Софьи
+D) в деревне Простаковых
 № 17. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 3. Уровень сложности: 2
 В каком ряду неверно указаны родственные отношения между героями комедии «Недоросль».
 A) Софья – племянница Правдина
@@ -213,57 +585,57 @@ C) Еремеевна – нянька Митрофана
 D) Митрофан – сын Простаковой
 № 18. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 2. Уровень сложности: 2
 Кому из персонажей комедии «Недоросль» принадлежат эти слова: «С тех пор как все, что у крестьян не было, мы отобрали, ничего уже содрать не можем. Такая беда».
-A) Милону
-B) Скотинину
-C) Простаковой
+A) Скотинину
+B) Простаковой
+C) Милону
 D) Митрофану
 № 19. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 2. Уровень сложности: 2
 Какое событие заставило Простакову активно заняться благоустройством сына.
-A) приезд Стародума
-B) желание Скотинина жениться на Софье
-C) любовь Митрофана к Софье
-D) известие о наследстве Софьи
+A) желание Скотинина жениться на Софье
+B) любовь Митрофана к Софье
+C) известие о наследстве Софьи
+D) приезд Стародума
 № 20. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 1. Уровень сложности: 2
 Создавая трагедию «Борис Годунов» А.Пушкин обращался за исторической справкой к многотомному труду русского писателя. Кто этот писатель и что это за труд.
-A) Н.Карамзин «История Государства Российского»
-B) Л.Толстой «Война и мир»
-C) Н.Гоголь «Ревизор»
-D) К.Рылеев «Думы»
+A) Л.Толстой «Война и мир»
+B) Н.Гоголь «Ревизор»
+C) К.Рылеев «Думы»
+D) Н.Карамзин «История Государства Российского»
 № 21. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 1. Уровень сложности: 1
 Выделите строку, где указаны произведения Н.Карамзина.
-A) «Недоросль», «Властителям и судиям»
-B) «Горе от ума», ода «Вольность»
-C) «Бедная Лиза», «История Государства Российского»
+A) «Бедная Лиза», «История Государства Российского»
+B) «Недоросль», «Властителям и судиям»
+C) «Горе от ума», ода «Вольность»
 D) «Ревизор», «Думы»
 № 22. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 2. Уровень сложности: 2
 Какая литературная пара удостоена этой характеристике: «Я живу уже здесь три дня. Нашел помещика, дурака бессчетного, а жену – презлую фурию…».
-A) Софья и Фамусов - «Горе от ума»
+A) Софья и Милон - «Недоросль»
 B) супруги Простаковы - «Недоросль»
-C) Софья и Милон - «Недоросль»
+C) Софья и Фамусов - «Горе от ума»
 D) Лиза и Эраст - «Бедная Лиза»
 № 23. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 1. Уровень сложности: 2
 О каком литературном произведении (в основу его легли реальные события русской жизни) В.Белинский сказал, что это: «прекрасный цветок славянской народной поэзии».
 A) «Руслан и Людмила»
 B) «Спящая красавица»
-C) о Библии
-D) «Слово о полку Игореве»
+C) «Слово о полку Игореве»
+D) о Библии
 № 24. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 1. Уровень сложности: 1
 Определите поэта по воспоминаниям А.Пушкина: «…был очень стар. Экзамен наш очень его утомил. Он сидел, подперши голову рукою. Лицо его было бессмысленно…».
-A) Г.Державин
-B) А.Радищев
-C) Н.Карамзин
-D) В.Жуковский
+A) А.Радищев
+B) Н.Карамзин
+C) В.Жуковский
+D) Г.Державин
 № 25. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 2. Уровень сложности: 1
 Кто назвал М.Ломоносова «самобытным сподвижником просвещения» и «первым нашим университетом»?
-A) Г.Державин
-B) А.Пушкин
+A) А.Пушкин
+B) Г.Державин
 C) Д.Фонвизин
 D) В.Жуковский
 № 26. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 9. Уровень сложности: 1
 «Вострепетал во внутренности моей, убоялся служения моего. Кровь моя пришла в жестокое волнение, и я пробудился», - кто из героев русской литературы так заканчивает описание своего сна.
-A) Петр Гринев («Капитанская дочка»)
+A) Обломов («Обломов»)
 B) Путешественник («Путешествие из Петербурга в Москву»)
-C) Обломов («Обломов»)
+C) Петр Гринев («Капитанская дочка»)
 D) Городничий («Ревизор»)
 № 27. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 1. Уровень сложности: 2
 Почему в поэме «Слово о полку Игореве» князь Игорь прощен автором и страной? Так как …
@@ -274,62 +646,62 @@ D) он самый честный князь
 № 28. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 1. Уровень сложности: 3
 Укажите фразу из «золотого слова» Святослава Киевского.
 A) Если сокол к гнезду летит, то окутаем мы соколенка красною девицей.
-B) Что же сотворили вы моей серебряной седине?
-C) Это мое, и то мое же.
-D) Лучше ведь убитым быть, чем плененным быть.
-№ 29. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 13. Уровень сложности: 2
+B) Это мое, и то мое же.
+C) Лучше ведь убитым быть, чем плененным быть.
+D) Что же сотворили вы моей серебряной седине?
+№ 29. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 13 Уровень сложности: 2
 Укажите произведение, которое «не только осмеивало бы невежество, Но и указывало бы на основное зло тогдашней жизни – крепостничество и произвол властей».
 A) Г.Державин «Властителям и судиям»
-B) Д.Фонвизин «Недоросль»
-C) Г.Державин «Фелица»
-D) Н.Гоголь «Ревизор»
+B) Г.Державин «Фелица»
+C) Н.Гоголь «Ревизор»
+D) Д.Фонвизин «Недоросль»
 № 30. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 3. Уровень сложности: 2
 В каком произведении автор восклицает: Не внемлют! Видят и не знают! Покрыты мздою очеса…
 A) Г.Державин «Памятник»
-B) Н.Гоголь «Ревизор»
-C) Г.Державин «Властителям и судиям»
+B) Г.Державин «Властителям и судиям»
+C) Н.Гоголь «Ревизор»
 D) Д.Фонвизин «Недоросль»
 № 31. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 5. Уровень сложности: 3
 Вставьте соответствующий эпитет в отрывок из стихотворения Г.Державина «Памятник»: Всяк будет помнить то в народах неисчетных, как из безвестности я тем известен стал, что первым я дерзнул в … русском слоге о добродетелях возгласить.
-A) Забавном
-B) роскошном
-C) беспечном
+A) роскошном
+B) беспечном
+C) Забавном
 D) изящном
 № 32. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 1. Уровень сложности: 3
 Какие пункты плана «Слова о полку Игореве» переставлены местами, что нарушает их последовательность. 1. Зачин. 2. Затмение, выступление в поход. 3. Святослав и его «золотое слово». 4. Первая и вторая битвы. 5. Плач Ярославны. 6. Концовка.
-A) 3 и 4
-B) 1 и 2
-C) 4 и 5
-D) 3 и 5
+A) 1 и 2
+B) 4 и 5
+C) 3 и 5
+D) 3 и 4
 № 33. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 4. Уровень сложности: 3
 В каком из предложений содержится информация о Г.Державине.
-A) Он являлся автором «Придворной грамматики».
-B) Знаменитый Григорий Потемкин сказал: «Умри, … лучше не напишешь».
-C) Екатерина 2 сделала попытку «приручить» его, назначив правителем Олонецкой, затем Тамбовской губернии.
-D) Он родился, вырос и учился в Москве.
+A) Екатерина 2 сделала попытку «приручить» его, назначив правителем Олонецкой, затем Тамбовской губернии.
+B) Он являлся автором «Придворной грамматики».
+C) Он родился, вырос и учился в Москве.
+D) Знаменитый Григорий Потемкин сказал: «Умри, … лучше не напишешь».
 № 34. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 3. Уровень сложности: 2
 Какое из произведений было впервые напечатано Е.Дашковой, президентом Академии наук, без ведома автора.
 A) Н.Гоголь «Ревизор»
-B) Д.Фонвизин «Недоросль»
-C) Г.Державин «Властителям и судиям»
-D) Г.Державин «Фелица»
+B) Г.Державин «Фелица»
+C) Д.Фонвизин «Недоросль»
+D) Г.Державин «Властителям и судиям»
 № 35. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 4. Уровень сложности: 3
 Определите цитату из произведения Г.Державина.
-A) О муза! Возгордись заслугой справедливой…
+A) О, ваши дни благословенны…
 B) О ангел мирных наших лет!
-C) О вы, которых ожидает Отечество от недр своих.
-D) О, ваши дни благословенны…
+C) О муза! Возгордись заслугой справедливой…
+D) О вы, которых ожидает Отечество от недр своих.
 № 36. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 2
 Благодаря чему побеждают добрые герои пьесы «Недоросль».
 A) благодаря решению Митрофана пойти служить в армию
-B) благодаря резкому вмешательству властей в лице Правдина
-C) благодаря заговору Еремеевны и учителей
-D) благодаря ловкому розыгрышу Софьи и Милона
+B) благодаря заговору Еремеевны и учителей
+C) благодаря ловкому розыгрышу Софьи и Милона
+D) благодаря резкому вмешательству властей в лице Правдина
 № 37. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 2. Уровень сложности: 2
 Кто из названных русских литераторов служил не только чиновником, но и офицером.
 A) Н.Карамзин
-B) Д.Фонвизин
-C) М.Ломоносов
+B) М.Ломоносов
+C) Д.Фонвизин
 D) Н.Гоголь
 № 38. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 2
 Укажите произведение, которое настолько пленило читателей чувствительной простотой, что для современников автора Симонов монастырь, где происходили описанные события, стал местом паломничества.
@@ -351,32 +723,32 @@ C) Кутейкин
 D) Стародум
 № 40. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 2
 Укажите вариант, содержащий сведения из биографии Д.Фонвизина.
-A) Будучи 25 лет от роду, создал свою первую комедию «Бригадир».
-B) Еще в военной службе рассорился он с вельможею Паниным, а в сенате не поладил со своим начальником А.Вяземским.
+A) Еще в военной службе рассорился он с вельможею Паниным, а в сенате не поладил со своим начальником А.Вяземским.
+B) Будучи 25 лет от роду, создал свою первую комедию «Бригадир».
 C) Его имя по праву носит Московский университет.
 D) Его трагедия «Тамира и Селим» была поставлена в придворном театре.
 № 41. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 2
 Речь какого персонажа комедии «Недоросль» пестрит подобными выражениями: «горе мне грешному», «здешняя епархия», «взалках», «зван был и приидох» и др.
 A) Простаков
-B) Цыфиркин
-C) Кутейкин
+B) Кутейкин
+C) Цыфиркин
 D) Вральман
 № 42. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 2
 Укажите вариант, в котором названы герои, выражающие непримиримо враждующие стороны добра и зла в комедии «Недоросль».
 A) Митрофан и Скотинин
 B) Правдин и Стародум
-C) Правдин и Милон
-D) Стародум и Простакова
+C) Стародум и Простакова
+D) Правдин и Милон
 № 43. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 3
 Кого из перечисленных персонажей комедии «Недоросль» не следует относить к числу положительных.
-A) Простакова
-B) Правдин
-C) Стародум
-D) Милон
+A) Правдин
+B) Стародум
+C) Милон
+D) Простакова
 № 44. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 3. Уровень сложности: 3
 Какая из особенностей комедии «Недоросль» нарушает законы классицизма.
-A) единство времени
-B) одновременное развитие нескольких конфликтов
+A) одновременное развитие нескольких конфликтов
+B) единство времени
 C) просветительский пафос пьесы
 D) торжество справедливости в финале
 № 45. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 4. Уровень сложности: 2
@@ -393,21 +765,21 @@ C) «без наук люди живут и жили»
 D) в свете «водятся премелкие души»
 № 47. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 4. Уровень сложности: 3
 Кто из данных героев назван ошибочно – не является персонажем комедии «Недоросль».
-A) Горич
-B) Правдин
-C) Стародум
-D) Вральман
+A) Правдин
+B) Стародум
+C) Вральман
+D) Горич
 № 48. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 3. Уровень сложности: 2
 «Зверский обычай порабощать себе подобного человека… к стыду нашему сохраняется даже до сего дня». Определите автора данного высказывания.
-A) Ф.Достоевский
-B) А.Радищев
+A) А.Радищев
+B) Ф.Достоевский
 C) Л.Толстой
 D) А.Пушкин
 № 49. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 1. Уровень сложности: 3
 Укажите главу из «Путешествия…» А.Радищева, где автор во сне становится царем и видит страшные злоупотребления властью со стороны монарха и царедворцев. «Сон» направлен против Екатерины 2 и Потемкина.
 A) «Пешки»
-B) «Любани»
-C) «Спасская полесть»
+B) «Спасская полесть»
+C) «Любани»
 D) «Вышний Волочок»
 № 50. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 1
 У какого литератора 18 века период творчества совпал с царствованием Елизаветы Петровны, которой он посвятил несколько восторженных од.
@@ -425,36 +797,36 @@ D) Д.Фонвизин
 Укажите поэта, который внес в лирику автобиографическую тему, индивидуальное «я» и этим самым разрушил нормы классицизма. Кроме этого, он совершил в своей жизни блестящую карьеру – прослужил от солдата до министра.
 A) Г.Державин
 B) А.Сумароков
-C) М.Ломоносов
-D) А.Пушкин
+C) А.Пушкин
+D) М.Ломоносов
 № 53. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 1. Уровень сложности: 2
 Определите поэта 18 века, который в своих произведениях рассуждал о боге, о гражданском предназначении власть имущих, о совести. Он же одним из первых воспел красоты русской природы.
-A) А.Сумароков
-B) А.Пушкин
-C) Г.Державин
-D) М.Ломоносов
-№ 54. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 2
-Какой литератор своими разнообразными трудами доказал, Что может собственных Платонов и быстрых разумом Невтонов Российская земля рождать…
-A) А.Сумароков
-B) М.Ломоносов
-C) Г.Державин
-D) А.Пушкин
-№ 163. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 1. Уровень сложности: 2
-Определите героя, произнесшего данные слова в поэме «Слово о полку Игореве»: «Лучше ведь убитым быть, чем плененным быть».
-A) Всеволод
-B) Игорь
-C) Святослав
-D) Лавр
-№ 55. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 2
-Определите поэта, который «обращается к любезным ему наукам». В земное недро ты, Химия, проникни взора остротой, И что содержит в нем Россия, драги сокровища открой.
 A) А.Сумароков
 B) Г.Державин
 C) А.Пушкин
 D) М.Ломоносов
-№ 56. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 2
-Одну из важнейших частей поэтического наследия этого поэта составляют его знаменитые оды, в которых он рисует идеал царей и вельмож как слуг общества, проникнутых единственным сознанием народного блага.
+№ 54. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 2
+Какой литератор своими разнообразными трудами доказал, Что может собственных Платонов и быстрых разумом Невтонов Российская земля рождать…
+A) А.Сумароков
+B) Г.Державин
+C) М.Ломоносов
+D) А.Пушкин
+№ 163. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 1. Уровень сложности: 2
+Определите героя, произнесшего данные слова в поэме «Слово о полку Игореве»: «Лучше ведь убитым быть, чем плененным быть».
+A) Всеволод
+B) Святослав
+C) Лавр
+D) Игорь
+№ 55. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 2
+Определите поэта, который «обращается к любезным ему наукам». В земное недро ты, Химия, проникни взора остротой, И что содержит в нем Россия, драги сокровища открой.
 A) М.Ломоносов
 B) А.Сумароков
+C) Г.Державин
+D) А.Пушкин
+№ 56. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 2
+Одну из важнейших частей поэтического наследия этого поэта составляют его знаменитые оды, в которых он рисует идеал царей и вельмож как слуг общества, проникнутых единственным сознанием народного блага.
+A) А.Сумароков
+B) М.Ломоносов
 C) Г.Державин
 D) А.Пушкин
 № 57. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 4. Уровень сложности: 2
@@ -467,8 +839,8 @@ D) М.Ломоносов
 Кто из героев произносит эту реплику: «Ум, коль он только что ум, - самая безделица. Прямую цену уму дает благонравие».
 A) Пугачев «Капитанская дочка»
 B) Тарас Бульба «Тарас Бульба»
-C) Стародум «Недоросль»
-D) Максим Максимыч
+C) Максим Максимыч
+D) Стародум «Недоросль»
 № 59. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 8. Уровень сложности: 3
 В какой главе из «Путешествия…» А.Радищева рассказывается история о том, как молодой барин продает своего бывшего дядьку, свою кормилицу и их дочь.
 A) «Медное»
@@ -478,93 +850,93 @@ D) «Вышний Волочок»
 № 60. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5 , параграф 3. Уровень сложности: 1
 В «Путешествие Радищев говорит о великом ученом-философе, поэте, патриоте, слава которого не умрет, «доколь слово русское ударять будет слух». О ком эти слова.
 A) А.Сумароков
-B) Г.Державин
-C) М.Ломоносов
+B) М.Ломоносов
+C) Г.Державин
 D) А.Пушкин
 № 61. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 4. Уровень сложности: 3
 О каком своем произведении Г.Державин писал, что «это такого рода сочинение, какого на нашем языке еще не было», имея в виду нарушение правил классицизма.
-A) «Фелица»
-B) «Памятник»
-C) «К Музе»
+A) «Памятник»
+B) «К Музе»
+C) «Фелица»
 D) «Признание»
 № 62. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 9. Уровень сложности: 1
 А.Грибоедов в «Горе от ума» рассказал о «герое», который «выменил» своих верных слуг на «борзые» три собаки. Еще раньше подобную страшную историю о том, как молодой барин продает своего бывшего дядьку, рассказал А.Радищев. Определите эту главу произведения.
 A) «Пешки»
-B) «Медное»
+B) «Любани»
+C) «Вышний Волочок»
+D) «Медное»
+№ 63. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 9. . Уровень сложности: 3
+В какой главе своей книги А.Радищев указал на народный бунт как наиболее реальный путь ликвидации главного зла России – крепостничества. В структуру этой главы он включил оду «Вольность».
+A) «Тверь»
+B) «Пешки»
 C) «Любани»
 D) «Вышний Волочок»
-№ 63. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 9. Уровень сложности: 3
-В какой главе своей книги А.Радищев указал на народный бунт как наиболее реальный путь ликвидации главного зла России – крепостничества. В структуру этой главы он включил оду «Вольность».
-A) «Пешки»
-B) «Любани»
-C) «Тверь»
-D) «Вышний Волочок»
 № 64. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 4. Уровень сложности: 1
-Этот писатель всегда интересовался историей своей родины. «Историческая тема» звучит у него даже в произведениях, посвященных любви: «Страшно воют ветры в стенах опустевшего монастыря, между гробов, заросших высокою травою». Определите его.
+Этот писатель всегда интересовался истории своей родины. «Историческая тема» звучит у него даже в произведениях, посвященных любви: «Страшно воют ветры в стенах опустевшего монастыря, между гробов, заросших высокою травою». Определите его.
 A) Л.Н.Толстой «Война и мир»
-B) А.Пушкин «Капитанская дочка»
-C) Н.Гоголь «Тарас Бульба»
-D) Н.Карамзин «Бедная Лиза»
+B) Н.Карамзин «Бедная Лиза»
+C) А.Пушкин «Капитанская дочка»
+D) Н.Гоголь «Тарас Бульба»
 № 65. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 9. Уровень сложности: 2
 Кто из русских писателей был в юности «пожалован» Екатериной 2 в пажи, а затем стал ярым врагом самодержавия.
-A) А.Радищев
-B) А.Сумароков
-C) Г.Державин
+A) А.Сумароков
+B) Г.Державин
+C) А.Радищев
 D) М.Ломоносов
 № 66. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 2. Уровень сложности: 2
 Какому поэту принадлежат эти строки: Власть царска веру сохраняет, власть царску вера утверждает, союзно общество гнетут…
 A) М.Лермонтову, «Родина»
-B) А.Пушкину, «Деревня»
-C) Г.Державину, «Властителям и судиям»
-D) А.Радищеву, ода «Вольность»
+B) А.Радищеву, ода «Вольность»
+C) А.Пушкину, «Деревня»
+D) Г.Державину, «Властителям и судиям»
 № 67. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 3. Уровень сложности: 1
 Кто из героев комедии «Недоросль» искренне говорит: «Все мое старание употреблю заслужить доброе мнение людей достойных».
 A) Софья
-B) Правдин
-C) Милон
-D) Стародум
-№ 68. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 3. Уровень сложности: 1
+B) Стародум
+C) Правдин
+D) Милон
+№68. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 3. Уровень сложности: 1
 Какому из героев комедии «Недоросль» не соответствует данная характеристика.
 A) Еремеевна: сильное чувство долга, рабская преданность господам
-B) Тришка – талантливый самоучка
-C) Цыфиркин: трудолюбив, «праздно жить не любит»
-D) Кутейкин: честный, самоотверженно обучающий Митрофана русскому и церковнославянскому языкам
+B) Кутейкин: честный, самоотверженно обучающий Митрофана русскому и церковнославянскому языкам
+C) Тришка – талантливый самоучка
+D) Цыфиркин: трудолюбив, «праздно жить не любит»
 № 69. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 4. Уровень сложности: 2
 С этим писателем А.Пушкин познакомился еще в детстве, когда Николай Михайлович бывал в их доме. Посетив Пушкина в лицее, он пожелал ему: «Пари-ка, орел, но не останавливайся в полете». Определите этого писателя.
 A) Державин
-B) Карамзин
-C) Вяземский
+B) Вяземский
+C) Карамзин
 D) Жуковский
 № 70. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 3. Уровень сложности: 2
 Какова цель приезда Правдина (комедия «Недоросль») в дом Простаковой.
 A) познакомиться с родственниками
 B) помочь другу найти любимую
-C) как хранитель законов, проверить их выполнение в губернии
-D) найти свою любимую
+C) найти свою любимую
+D) как хранитель законов, проверить их выполнение в губернии
 № 71. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 1. Уровень сложности: 2
 О каком литературном герое Н.Гоголь сказал: «Свиньи сделались для него то же, что для любителя искусств картинная галерея».
-A) о Плюшкине, «Мертвые души»
-B) о Троекурове, «Дубровский»
-C) о муже Простаковой, «Недоросль»
-D) о Тарасе Скотинине, «Недоросль»
+A) о Тарасе Скотинине, «Недоросль»
+B) о муже Простаковой, «Недоросль»
+C) о Плюшкине, «Мертвые души»
+D) о Троекурове, «Дубровский»
 № 72. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф4. Уровень сложности: 1
 Какая из указанных тем не была затронута Д.Фонвизиным в комедии «Недоросль».
-A) эмансипации женщин
-B) тема воспитания
+A) тема воспитания
+B) эмансипации женщин
 C) нравов придворного дворянства
 D) отечества и службы ему
 № 73. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 1. Уровень сложности: 1
 О каком русском ученом и стихотворце А.Пушкин сказал: «Историк, риторик, физик, механик, химик, минералог, художник и стихотворец», а критик В.Белинский назвал его «Петром Великим русской литературы».
 A) Г.Державин
-B) М. Ломоносов
-C) Д.Фонвизин
+B) Д.Фонвизин
+C) М. Ломоносов
 D) А.Радищев
 № 74. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 3. Уровень сложности: 1
 Кто из героев комедии «Недоросль» произносит такие слова: «… тиранствовать никто не волен».
 A) Милон
 B) Софья
-C) Стародум
-D) Правдин
+C) Правдин
+D) Стародум
 № 75. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 4. Уровень сложности: 1
 В какой главе «Путешествия из Петербурга в Москву» автор размышляет о свободном книгопечатании и о вреде цензуры, ибо «чем она строже, тем следствия ее пагубнее».
 A) «Торжок»
@@ -587,7 +959,7 @@ D) Рудин, «Рудин»
 «С … начинается наша литература… Он был ее отцом, ее Петром Великим», - писал В.Белинский. Кого имел в виду великий критик.
 A) А.Пушкина
 B) Г.Державина
-C) Д.Фонвизина
+C) Д.Фонвизин
 D) М.Ломоносова
 № 79. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 14, параграф 3. Уровень сложности: 1
 Определите, кто из поэтов, борясь всю жизнь с пороком, считал, что «властители и судии» должны «всегда спасать от бед невинных», «исторгнуть бедных из оков».
@@ -595,951 +967,1035 @@ A) Г.Державин
 B) А.Радищев
 C) Д.Фонвизин
 D) Н.Карамзин
-№ 80. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 2. Уровень сложности: 1
+№ 80. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 1, параграф 2 Уровень сложности: 1
 Укажите основную идею поэмы «Слово о полку Игореве».
-A) призыв князей и народа к сплочению для борьбы за единство Руси
-B) воспевание величия и мудрости князя Святослава
+A) воспевание величия и мудрости князя Святослава
+B) призыв князей и народа к сплочению для борьбы за единство Руси
 C) показ храбрости и мужества русского воинства
 D) воспевание князей Игоря и «буй-тур» Всеволода
 № 81. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 3. Уровень сложности: 1
 Кто из героев комедии «Недоросль» является основным выразителем идеи борьбы с произволом крепостников.
 A) Милон
-B) Правдин
-C) Простаков
+B) Простаков
+C) Правдин
 D) Цыфиркин
 № 82. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 3. Уровень сложности: 1
 Кто из величайших деятелей России в 18 веке осуществил реформу русского литературного языка и системы стихосложения.
 A) Г.Державин
 B) Д.Фонвизин
-C) М.Ломоносов
-D) А.Радищев
-№ 83. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 2 , параграф 2. Уровень сложности: 2
+C) А.Радищев
+D) М.Ломоносов
+№ 83. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 2 , параграф 2 Уровень сложности: 2
 Определите, какая из указанных сказок авторская.
-A) «Царевна-лягушка»
-B) «Колобок»
-C) «Теремок»
-D) «Аленький цветочек»
+A) «Аленький цветочек»
+B) «Царевна-лягушка»
+C) «Колобок»
+D) «Теремок»
 № 84. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 3. Уровень сложности: 1
 Какая из перечисленных сцен комедии «Недоросль» является кульминационной.
 A) Приезд Стародума
-B) Получение Софьей письма от Стародума
-C) Простакова решает тайно похитить Софью и обвенчать ее с Митрофаном
+B) Простакова решает тайно похитить Софью и обвенчать ее с Митрофаном
+C) Получение Софьей письма от Стародума
 D) Софья и Милон получают благословение Стародума
 № 85. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 12, параграф 4. Уровень сложности: 2
 Кто из героев комедии «Недоросль» является пропагандистом передовых взглядов.
 A) Скотинин
 B) Софья
-C) Простакова
-D) Стародум
+C) Стародум
+D) Простакова
 № 86. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 15, параграф 4. Уровень сложности: 2
 В какой басне И.Крылова иносказательно переданы события 1812 года.
-A) «Волк на псарне»
-B) «Квартет»
-C) «Слон и Моська»
-D) Волк и ягненок»
-№ 87. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 3. Уровень сложности: 1
-Согласно теории «трех штилей» М.Ломоносов предлагал писать «низким» стилем:,1) светские повести; 2) трагедии; 3) оды; 4) комедии; 5) басни; 6) сатирические стихи.
-A) 1 и 2
-B) 4,5,6
+A) «Квартет»
+B) «Слон и Моська»
+C) Волк и ягненок»
+D) «Волк на псарне»
+№ 87. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 5, параграф 3. Уровень сложности:1
+Согласно теории «трех штилей» М.Ломоносов предлагал писать «низким» стилем: 1) светские повести;  2) трагедии;  3) оды;   4) комедии;  5) басни;  6) сатирические стихи.
+A) 4,5,6
+B) 1 и 2
 C) 3,5,6
 D) 1,6
 № 88. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 3, параграф 2. Уровень сложности: 1
 Кто первым из русских поэтов-романтиков перевел «Одиссею» Гомера.
 A) Г.Державин
-B) М.Ломоносов
-C) Д.Фонвизин
-D) В.Жуковский
+B) В.Жуковский
+C) М.Ломоносов
+D) Д.Фонвизин
 № 89. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 16, параграф 9. Уровень сложности: 1
-В какой главе «Путешествия из Петербурга в Москву» А.Радищева особенно заметно восхищение нравственными основами народного характера.
-A) «Любани»
-B) «Медное»
-C) «Спасская Полесть»
+В какой главе «Путешествия из Петербурга в Москву» А.Радищева особенно заметно восхищение нравственными основавами народного характера.
+A) «Медное»
+B) «Спасская Полесть»
+C) «Любани»
 D) «Пешки»
 № 90. Лебедева О.Б. История русской литературы XVIII века. – М., 2000. Глава 17, параграф 2. Уровень сложности: 2
 Какое произведение, необыкновенный титанический труд А.С.Пушкин назвал «… не только созданием великого писателя, но и подвигом честного человека».
 A) «Иван Сусанин» К.Рылеева
 B) «Недоросль» Д.Фонвизина
-C) «История Государства Российского» Н.Карамзина
-D) «Горе от ума» А.Грибоедова
-№ 91. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2. Уровень сложности: 2
+C) «Горе от ума» А.Грибоедова
+D) «История Государства Российского» Н.Карамзина
+№ 91. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2 Уровень сложности: 2
 Кто из действующих лиц комедии «Горе от ума» имел репутацию светского человека, отъявленного мошенника, плута, лгунишки.
 A) Загорецкий
 B) Молчалин
 C) Репетилов
 D) Скалозуб
-№ 92. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 11. Уровень сложности: 2
+№ 92. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 11 Уровень сложности: 2
 Кому принадлежал этот кабинет: «Толстоногий стол, заваленный почерневшими от старинной пыли, словно прокопченными бумагами, занимал весь промежуток между двумя окнами; по стенам висели турецкие ружья, нагайки, сабля…».
 A) старому князю Болконскому
 B) Василию Ивановичу Базарову
 C) доктору Вернеру
 D) Собакевичу
-№ 93. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
+№ 93. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12 Уровень сложности:  2
 Чье пение описано в данном отрывке: «… она пела еще не хорошо, как говорили все знатоки-судьи, которые ее слушали. – Не обработан, но прекрасный голос, надо обработать, - говорили они…».
 A) княжны Мери
 B) Ольги Ильинской
-C) Анны Одинцовой
-D) Наташи Ростовой
-№ 94. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10. Уровень сложности: 2
+C) Наташи Ростовой
+D) Анны Одинцовой
+№ 94. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10 Уровень сложности: 2
 Чей слуга описан в данном отрывке: «Характера он был больше молчаливого, чем разговорчивого… Кроме страсти к чтению, он имел еще два обыкновения, составляющие его черты: спать не раздеваясь… и носить с собою какой-то особенный воздух».
-A) Петрушка, слуга Чичикова
-B) Селифан, слуга Чичикова
-C) Захар, слуга Обломова
-D) Осип, слуга Хлестакова
-№ 95. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3. Уровень сложности: 2
+A) Селифан, слуга Чичикова
+B) Захар, слуга Обломова
+C) Осип, слуга Хлестакова
+D) Петрушка, слуга Чичикова
+№ 95. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3 Уровень сложности: 2
 О ком идет речь: «Скептик, материалист, но вместе с тем утонченная, поэтическая фигура. Сочинял эпиграммы. Мал ростом, худ и хром…».
-A) князь Болконский
-B) Василий Базаров
-C) доктор Вернер
+A) доктор Вернер
+B) князь Болконский
+C) Василий Базаров
 D) Собакевич
-№ 96. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 1
-Узнайте литературного героя по речевой характеристике: «Что, голубчики, как поживаете, как товар ваш идет… Что самоварники, аршинники, жаловаться! Семь чертей и одна ведьма вам в зубы…».
+№ 96. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7 Уровень сложности: 1
+Узнайте литературного героя по речевой характеристике: «Что, голубчики, как поживаете, как товар ваш идет…  Что самоварники, аршинники, жаловаться! Семь чертей и одна ведьма вам в зубы…».
 A) Дикой
 B) Городничий
 C) Ноздрев
 D) Скотинин
-№ 97. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 1
+№ 97. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7 Уровень сложности: 1
 О каком литературном герое идет речь: «Губернатор о нем изъяснялся, что он благонамеренный человек; прокурор – что он дельный человек; председатель палаты – что он знающий и почтенный человек…».
 A) о Безухове
-B) о Чичикове
-C) о Лаврецком
+B) о Лаврецком
+C) о Чичикове
 D) об Обломове
-№ 98. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10. Уровень сложности: 2
+№ 98. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10 Уровень сложности: 2
 Кто из героев романа «Преступление и наказание» жил в этой комнате: «Огарок освещал беднейшую комнату шагов в десять длиной; всю ее было видно из сеней. Все было разбросано и в беспорядке. Через задний угол была протянута дырявая простыня».
-A) супруги Мармеладовы
-B) Раскольников
-C) Разумихин
-D) Соня
-№ 99. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2. Уровень сложности: 1
+A) Раскольников
+B) Разумихин
+C) Соня
+D) супруги Мармеладовы
+№ 99. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2 Уровень сложности: 1
 Кто из действующих лиц комедии «Горе от ума» признается. «Сам бредил целый век обедом или балом! Об детях забывал! Обманывал жену! Пил мертвую!».
-A) Загорецкий
-B) Репетилов
+A) Репетилов
+B) Загорецкий
 C) Молчалин
 D) Скалозуб
-№ 100. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13. Уровень сложности: 2
+№ 100. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13 Уровень сложности: 2
 Какому литературному герою адресовано это письмо: «Доношу твоей барской милости, что у тебя в вотчине, кормилец ты наш, все благополучно. Пятую неделю нет дождей: знать прогневали Господа Бога, что нет дождей. Такой засухи старики не помнят…».
 A) Манилову
-B) Ростову
-C) Обломову
+B) Обломову
+C) Ростову
 D) Дубровскому
-№ 101. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 2
-Из какого произведения взят этот диалог : - Вы, верно, не здешние, - сказала она. – Точно так-с: я вчера только приехала из провинции. – У меня нет ни отца, ни матери. Я приехала подать просьбу государыне.
-A) «Обломов»
+№ 101. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4
+Уровень сложности: 2
+Из какого произведения взят этот диалог: - Вы, верно, не здешние, - сказала она. – Точно так-с: я вчера только приехала из провинции. – У меня нет ни отца, ни матери. Я приехала подать просьбу государыне.
+A) «Капитанская дочка»
 B) «Война и мир»
 C) «Бурмистр»
-D) «Капитанская дочка»
-№ 102. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
+D) «Обломов»
+№ 102. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 2
 О жителях какого города идет речь: «Торговлю друг у друга подрывают, и не столько из корысти, сколько из зависти. Враждуют друг на друга…».
 A) город N, «Мертвые души»
 B) город Калинов, «Гроза»
 C) Глупов, «История одного города»
 D) Тамань, «Герой нашего времени»
-№ 103. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 1
+№ 103. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 1
 Какой литературный герой получил в наследство от отца «четыре заношенные безвозвратно фуфайки, два старых сюртука и незначительную сумму денег».
-A) Ноздрев
-B) Дикой
+A) Дикой
+B) Ноздрев
 C) Чичиков
 D) Скотинин
-№ 104. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 2
+№ 104. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 2
 В чьей гостиной висели эти картины: «На картинах все были молодцы, все греческие полководцы… Все эти герои были с такими толстыми ляжками и неслыханными усами, что дрожь проходила по телу».
-A) Собакевича
-B) Манилова
+A) Манилова
+B) Ноздрева
 C) Коробочки
-D) Ноздрева
-№ 105. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 3
+D) Собакевича
+№ 105. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 3
 Жизнь какого семейства описана в поэме «Мертвые души»: «Все текло живо и совершалось размеренным ходом, везде во все входил зоркий взгляд хозяина…».
-A) семья Ноздрева
-B) семья Собакевича
+A) семья Плюшкина
+B) семья Ноздрева
 C) семья Манилова
-D) семья Плюшкина
-№ 106. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
+D) семья Собакевича
+№ 106. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 2
 Кто из героев романа «Война и мир» в своем дневнике пишет так: «Встал поздно, и, проснувшись, долго лежал на постели, предаваясь лени. Боже мой, помоги мне…».
-A) Борис Курагин
+A) Андрей Болконский
 B) Пьер Безухов
-C) Андрей Болконский
+C) Борис Курагин
 D) Анатоль Курагин
-№ 107. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 2
+№ 107. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 2
 Кому из героев поэмы «Мертвые души» принадлежал «…странный экипаж, наводивший недоумение насчет своего названия. Он не был похож ни на тарантас, ни на коляску, а был скорее похож на толстощекий арбуз, поставленный на колеса…».
-A) Манилову
-B) Ноздреву
+A) Ноздреву
+B) Собакевичу
 C) Коробочке
-D) Собакевичу
-№ 108. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 1
+D) Манилову
+№ 108. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4
+Уровень сложности: 1
 Кто был секундантом Онегина на дуэли с Ленским.
-A) лакей-француз Гильо
-B) Панфил Харликов
-C) Зарецкий
-D) гусар Пыхтин
-№ 109. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 1
+A) Панфил Харликов
+B) Зарецкий
+C) гусар Пыхтин
+D) лакей-француз Гильо
+№ 109. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 1
 Укажите неверное утверждение. Н.Гоголь – это …
-A) друг А.С.Пушкина
-B) автор комедии «Женитьба»
-C) писатель-реалист
-D) писатель второй половины 19 века
-№ 110. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5. Уровень сложности: 2
+A) писатель второй половины 19 века
+B) друг А.С.Пушкина
+C) автор комедии «Женитьба»
+D) писатель-реалист
+№ 110. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5
+Уровень сложности: 2
 Найдите неверный вариант, обратив внимание на родственные отношения героев.
 A) Кабанова – Тихон
 B) Раневская – Гаев
 C) Пульхерия Александровна – Родион Раскольников
 D) Арина Власьевна – Базаров
-№ 111. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5. Уровень сложности: 2
+№ 111. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5
+Уровень сложности: 2
 Дополните: «Мертвые души» - город NN; «Гроза» - Калинов; «Ионыч» - …
-A) Ялта
-B) Бряхимов
+A) Таганрог
+B) Ялта
 C) город С
-D) Таганрог
+D) Бряхимов
 № 112. Уровень сложности: 1
 Укажите неверное определение: Беликов – это …
-A) «прореха на человечестве»
-B) «глитай абож паук»
-C) «влюбленный антропос»
-D) «человек в футляре»
-№ 113. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 2
+A) «человек в футляре»
+B) «влюбленный антропос»
+C) «глитай абож паук»
+D) «прореха на человечестве»
+№ 113. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 2
 В каком произведении у литературного героя был столь строгий наставник: «… учитель был большой любитель тишины и хорошего поведения и терпеть не мог умных и острых мальчиков; ему казалось, что они непременно должны над ним смеяться…».
-A) «Герой нашего времени»
+A) «Мертвые души»
 B) «Отцы и дети»
 C) «Обломов»
-D) «Мертвые души»
-№ 114. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 1. Уровень сложности: 2
+D) «Герой нашего времени»
+№ 114. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 1
+Уровень сложности: 2
 Репетилов («Горе от ума»), Хлестаков («Ревизор»), Гаев («Вишневый сад») – это…
 A) молодые люди
-B) старые служаки
-C) прожигатели жизни
+B) прожигатели жизни
+C) старые служаки
 D) служители порядка
-№ 115. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 3
+№ 115. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4
+Уровень сложности: 3
 Кто из литературных героев А.Пушкина написал эти строки: Но глаза, что мя пленили, Всеминутно предо мной; Они дух во мне смутили, Сокрушили мой покой.
-A) Евгений Онегин
-B) Петр Гринев
-C) гусар Минский
-D) Владимир Ленский
-№ 116. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 9. Уровень сложности: 3
+A) Владимир Ленский
+B) Евгений Онегин
+C) Петр Гринев
+D) гусар Минский
+№ 116. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 9
+Уровень сложности: 3
 Отгадайте загадку из поэмы «Кому на Руси жить хорошо»: Никто его не видывал, А слышать всякий слыхивал, Без тела – а живет оно, Без языка – кричит!
-A) эхо
+A) гром
 B) филин
 C) ветер
-D) гром
-№ 117. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
+D) эхо
+№ 117. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 2
 Имя какого героя пропущено в цитате: «При слове три … быстрыми шагами пошел вперед, сбиваясь с протоптанной дорожки и шагая по цельному снегу…».
-A) П.Кирсанов
-B) Грушницкий
+A) Безухов
+B) П.Кирсанов
 C) Гринев
-D) Безухов
-№ 118. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 1
+D) Грушницкий
+№ 118. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 1
 Укажите героев, которые не являются антиподами.
-A) Гринев–Швабрин
+A) Печорин–Грушницкий
 B) Дикой–Кабанова
-C) Печорин–Грушницкий
+C) Гринев–Швабрин
 D) Онегин–Ленский
-№ 119. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 9. Уровень сложности: 3
+№ 119. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 9
+Уровень сложности: 3
 Определите литературных героев – страстных любителей охоты.
-A) Угрюм-Бурчеев («Дикий помещик»), Очумелов («Хамелеон»), Скотинин («Недоросль»)
-B) Максим Максимыч («Герой нашего времени»), Безухов («Война и мир»), Кудряш («Гроза»)
+A) Онегин («Евгений Онегин»), Манилов («Мертвые души»), Кудряш («Гроза»)
+B) Угрюм-Бурчеев («Дикий помещик»), Очумелов («Хамелеон»), Скотинин («Недоросль»)
 C) Оболт-Оболдуев («Кому на Руси жить хорошо»), Троекуров («Дубровский»), Ноздрев («Мертвые души»)
-D) Онегин («Евгений Онегин»), Манилов («Мертвые души»), Кудряш («Гроза»)
-№ 120. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 2
+D) Максим Максимыч («Герой нашего времени»), Безухов («Война и мир»), Кудряш («Гроза»)
+№ 120. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4
+Уровень сложности: 2
 В распорядок дня какого героя входили: купание в реке, прогулки в лесу, чтение, полуденный сон, верховая езда, изысканный обед.
-A) Евгения Онегина
-B) Печорина
-C) Обломова
-D) Штольца
-№ 121. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 1
-Кого из персонажей пьесы «Гроза» автор характеризует так: «купец, значительное лицо в городе».
-A) Тихона
+A) Обломова
+B) Штольца
+C) Печорина
+D) Евгения Онегина
+№ 121. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 1
+Кого из персона пьесы «Гроза» автор характеризует так: «купец, значительное лицо в городе».
+A) Дикого
 B) Бориса
 C) Кудряша
-D) Дикого
-№ 122. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8. Уровень сложности: 2
+D) Тихона
+№ 122. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8
+Уровень сложности: 2
 Кто из героев М.Салтыкова-Щедрина имел репутацию шута, озорника и балбеса, но при этом успешно закончил университет.
-A) Павел Головлев
+A) Бородавкин
 B) Степан Головлев
-C) Бородавкин
-D) Грустилов
-№ 123. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 1
-Определите, из какого стихотворения А.Пушкина, посвященного лицею, эти строки: Воображаю день счастливый. Когда средь нас возник лицей,И слышу наших игр я снова шум игривый И вижу вновь семью друзей.
+C) Грустилов
+D) Павел Головлев
+№ 123. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4
+Уровень сложности: 1
+Определите, из какого стихотворения А.Пушкина, посвященного лицею, эти строки: Воображаю день счастливый. Когда средь нас возник лицей, И слышу наших игр я снова шум игривый  И вижу вновь семью друзей.
 A) «19 октября», 1825
-B) «19 октября», 1828
+B) «Царское село», 1817
 C) «Воспоминание в Царском селе», 1829
-D) «Царское село», 1817
-№ 124. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13. Уровень сложности: 2
+D) «19 октября», 1828
+№ 124. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13
+Уровень сложности: 2
 «Нет, она не такая, она не обманщица, - решил он, - обманщицы не смотрят таким ласковым взглядом: у них нет такого искреннего смеха…». Определите, о взаимоотношениях каких героев идет речь.
-A) Ольга-Обломов
-B) Одинцова-Базаров
-C) Катя-А.Кирсанов
-D) Наталья-Рудин
-№ 125. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 1
+A) Катя-А.Кирсанов
+B) Наталья-Рудин
+C) Одинцова-Базаров
+D) Ольга-Обломов
+№ 125. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 1
 Герой пьесы «Гроза» - механик-самоучка, отыскивающий вечный двигатель…
-A) Тихон
+A) Кулигин
 B) Борис
 C) Шапкин
-D) Кулигин
-№ 126. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 11. Уровень сложности: 2
+D) Тихон
+№ 126. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 11
+Уровень сложности: 2
 «Нет, небогатый край этот, не поражает он ни довольством, ни трудолюбием; нельзя, нельзя ему так оставаться, преобразования необходимы…». Кто из героев так размышлял.
 A) Е.Базаров
-B) В.Дубровский
-C) А.Кирсанов
+B) А.Кирсанов
+C) В.Дубровский
 D) А.Болконский
-№ 127. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 2
+№ 127. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 2
 Пьесы «Свои люди сочтемся», «Бесприданница», «Доходное место» объединяет:
-A) тема власти денег над людьми
-B) проблема отцов и детей
-C) образы талантливых девушек
+A) проблема отцов и детей
+B) образы талантливых девушек
+C) тема власти денег над людьми
 D) смерть главных героев
-№ 128. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 11. Уровень сложности: 2
-При первой встрече с новым лицом он « слегка наклонил свой гибкий стан и слегка улыбнулся, но руки не подал…» . Кто так поступил.
-A) А.Болконский
-B) П.Кирсанов
-C) Хлестаков
-D) Печорин
-№ 129. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 2
+№ 128. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 11
+Уровень сложности: 2
+При первой встрече с новым лицом он «слегка наклонил свой гибкий стан и слегка улыбнулся, но руки не подал…». Кто так поступил.
+A) Хлестаков
+B) А.Болконский
+C) Печорин
+D) П.Кирсанов
+№ 129. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 2
 Кто из героев так сетует на судьбу, растроганный гостеприимством хозяина и удачной сделкой: «Да и действительно, чего не потерпел я. Как барка какая-нибудь среди свирепых волн…».
-A) Рудин
-B) Долохов
-C) Громов
-D) Чичиков
-№ 130. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
+A) Чичиков
+B) Громов
+C) Долохов
+D) Рудин
+№ 130. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 2
 В каком произведении Л.Толстой подводит читателя к пониманию основной причины героизма русского солдата.
 A) «После бала»
-B) «Воскресение»
-C) «Севастополь в декабре»
-D) «Война и мир»
-№ 131. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13. Уровень сложности: 2
-Какому литературному герою няня « повествует о подвигах наших Ахиллов и Улиссов, об удали Ильи Муромца, Добрыни Никитича, Алеши Поповича…».
-A) Обломову
+B) «Севастополь в декабре»
+C) «Война и мир»
+D) «Воскресение»
+№ 131. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13
+Уровень сложности: 2
+Какому литературному герою няня «повествует о подвигах наших Ахиллов и Улиссов, об удали Ильи Муромца, Добрыни Никитича, Алеши Поповича…».
+A) Аркадию
 B) Дубровскому
-C) Митрофанушке
-D) Аркадию
-№ 132. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 3
-Кто из писателей открыл метод психологического анализа, получившего название « диалектика души ».
-A) И.Тургенев
-B) Л.Толстой
-C) А.Чехов
-D) И.Гончаров
-№ 133. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 2
+C) Обломову
+D) Митрофанушке
+№ 132. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 3
+Кто из писателей открыл метод психологического анализа, получившего название «диалектика души».
+A) И.Гончаров
+B) А.Чехов
+C) И.Тургенев
+D) Л.Толстой
+№ 133. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 2
 Какая супружеская пара совершенно довольна друг другом: «Несмотря на то, что минуло более восьми лет их супружеству, из них все еще каждый приносил другому или кусочек яблочка, или конфетку, или орешек…».
-A) Ольга Ильинская и Штольц
-B) господин и госпожа Простаковы
-C) Наташа Ростова и Пьер Безухов
-D) супруги Маниловы
-№ 134. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 3
+A) супруги Маниловы
+B) Наташа Ростова и Пьер Безухов
+C) Ольга Ильинская и Штольц
+D) господин и госпожа Простаковы
+№ 134. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 3
 Л.Толстой отдает предпочтение героям с напряженной внутренней жизнью. Кто из героев «Войны и мира» говорит: «Я от разорения стал гораздо богаче».
-A) П.Безухов
-B) Ф.Долохов
-C) А.Болконский
-D) Б.Друбецкой
-№ 135. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
+A) Ф.Долохов
+B) П.Безухов
+C) Б.Друбецкой
+D) А.Болконский
+№ 135. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 2
 В каком из произведений герой мечтает: «Нынче я исповедуюсь, я очищусь от всех грехов … и больше уже никогда не буду (тут я припомнил все грехи, которые больше всего мучили меня)…».
 A) «Обломов»
 B) «Бедные люди»
 C) «Юность»
 D) «Капитанская дочка»
-№ 136. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13. Уровень сложности: 3
+№ 136. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13
+Уровень сложности: 3
 Кто из героев, желая прервать свою службу, направил следующее медицинское свидетельство о состоянии здоровья: «Коллежский секретарь. одержим отолщением сердца с расширением левого желудочка оного, а равно болью в печени…».
 A) Червяков
-B) Обломов
-C) Мармеладов
-D) Чичиков
-№ 137. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 1
-« Ежели бы я был твоим начальником, я бы тебя повесил на первом дереве ». Кто из помещиков говорит это Чичикову.
-A) Тентетников
-B) Плюшкин
-C) Собакевич
-D) Ноздрев
-№ 138. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13. Уровень сложности: 1
+B) Мармеладов
+C) Чичиков
+D) Обломов
+№ 137. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 1
+«Ежели бы я был твоим начальником, я бы тебя повесил на первом дереве». Кто из помещиков говорит это Чичикову.
+A) Ноздрев
+B) Тентетников
+C) Плюшкин
+D) Собакевич
+№ 138. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13
+Уровень сложности: 1
 Какой литературный герой так определяет идеал своей жизни: «Ну вот, встал бы утром… В ожидании, пока проснется жена, походил бы по саду. Потом иду в ванну или реку купаться, возвращаюсь – балкон уже отворен… Она ждет меня».
-A) Хлестаков
+A) Друбецкой
 B) Обломов
-C) Друбецкой
+C) Хлестаков
 D) Манилов
-№ 139. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
+№ 139. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 2
 Кто из героев «Войны и мира» о ком думает: «Неужели он умер в том злобном настроении, в котором он был тогда».
-A) Пьер об Андрее
-B) Наташа об Андрее
-C) Денисов о Пете
+A) Наташа об Андрее
+B) Денисов о Пете
+C) Пьер об Андрее
 D) княжна Мери об отце
-№ 140. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
+№ 140. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 2
 Чье духовное перерождение так характеризует Наташа Ростова: «Он сделался какой-то чистый, свежий: точно из бани, морально из бани».
 A) Курагина
-B) Долохова
-C) Пьера
-D) Николая
-№ 141. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2. Уровень сложности: 3
+B) Николая
+C) Долохова
+D) Пьера
+№ 141. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2
+Уровень сложности: 3
 Кто из героев комедии «Горе от ума», называющий себя верным другом Чацкого, сообщает о себе: «Способностями бог меня не наградил, дал сердце доброе, вот чем я людям мил. Совру – простят …».
-A) Молчалин
+A) Репетилов
 B) Скалозуб
 C) Загорецкий
-D) Репетилов
-№ 142. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 3
-В романе «Евгений Онегин» насчитывается множество отступлений. Именно благодаря им действие романа выходит за рамки частной жизни героя и расширяется до масштабов общерусских: 1) отступления, выражающие отношение автора к герою; 2) отступления философского характера; 3) отступления о природе; 4) отступления о любви и дружбе; 5) отступления о театре, литературных направлениях, балах . Укажите все авторские отступления, присутствующие в романе.
-A) 2,3,4
-B) 1,2,3,4
-C) 1,2,3,4,5
+D) Молчалин
+№ 142. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4
+Уровень сложности: 3
+В романе «Евгений Онегин» насчитывается множество отступлений. Именно благодаря им действие романа выходит за рамки частной жизни героя и расширяется до масштабов общерусских: 1) отступления, выражающие отношение автора к герою; 2) отступления философского характера; 3) отступления о природе; 4) отступления о любви и дружбе; 5) отступления о театре, литературных направлениях, балах. Укажите все авторские отступления, присутствующие в романе.
+A) 1,2,3,4
+B) 1,2,3,4,5
+C) 2,3,4
 D) 2,3,5
-№ 143. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 1
+№ 143. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 1
 Кому из героев поэмы «Мертвые души» принадлежат ярко характеризующие его слова и выражения: «душенька», «препочтеннейший», «майский день», «именины сердца».
-A) Манилову
-B) Ноздреву
-C) Коробочке
-D) Чичикову
-№ 144. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8. Уровень сложности: 2
+A) Ноздреву
+B) Чичикову
+C) Манилову
+D) Коробочке
+№ 144. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8
+Уровень сложности: 2
 Слово «семья» не сходило с языка этой героини. Но в действительности семья для нее не существовала. Дети ей только мешали, и она из экономии держала их впроголодь. Огромные запасы всякого добра гнили в амбарах. Укажите, кто это.
-A) Анна Андреевна
-B) Кабаниха
-C) Арина Петровна
-D) Коробочка
-№ 145. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
+A) Кабаниха
+B) Коробочка
+C) Анна Андреевна
+D) Арина Петровна
+№ 145. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 2
 Какому персонажу романа «Война и мир» принадлежат следующие черты внешнего облика: некрасива и даже «дурна», по определению отца, у нее «тяжелые шаги», большие лучистые глаза.
-A) Соня
+A) княжна Марья
 B) Лиза
-C) Наташа
-D) княжна Марья
-№ 146. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13. Уровень сложности: 1
+C) Соня
+D) Наташа
+№ 146. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13
+Уровень сложности:  1
 Какой персонаж романа «Обломов» характеризуется словами: «Ему никогда не приходило в голову подвергать анализу свои чувства в отношении к Илье Ильичу; он не сам выдумал их; они перешли от отца, деда, братьев…».
-A) Тарантьев
+A) Пенкин
 B) Захар
-C) Пенкин
+C) Тарантьев
 D) Штольц
-№ 147. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 2
+№ 147. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 2
 Одним из приемов образования фамилий у этого писателя является метафоризация (переносное значение). В его произведениях нет случайных фамилий: Коршунов, Большов, Подхалюзин, Липочка. Это герои произведений …
-A) А.Островского
-B) Н.Гоголя
-C) И.Гончарова
+A) Н.Гоголя
+B) И.Гончарова
+C) А.Островского
 D) А.Чехова
-№ 148. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5. Уровень сложности: 1
+№ 148. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5
+Уровень сложности: 1
 Как называется рассказ А.Чехова, в котором полицейский надзиратель Очумелов и золотых дел мастер Хрюкин «перестраиваются» в своем отношении к собаке, в зависимости от того, «генеральская» она или не «генеральская».
 A) «Лошадиная фамилия»
-B) «Толстый и тонкий»
-C) «Хамелеон»
-D) «Каштанка»
-№ 149. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3. Уровень сложности: 3
+B) «Каштанка»
+C) «Толстый и тонкий»
+D) «Хамелеон»
+№ 149. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3
+Уровень сложности: 3
 Какая из повестей романа «Герой нашего времени» заканчивается следующим размышлением героя: «Слава Богу, поутру явилась возможность ехать… Что сталось со старухой и бедным малым – не знаю. Да и какое мне дело до радостей и бедствий человеческих, мне странствующему офицеру, да еще с подорожной…».
 A) «Тамань»
-B) «Бэла»
-C) «Фаталист»
-D) «Княжна Мери»
-№ 150. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10. Уровень сложности: 3
-Укажите точное соответствие описаний героям романа «Преступление и наказание»: 1) Спасает вера, сострадание. Покоряет силой души и характера. 2) Благородство цели и бесчеловечность ее достижения. 3) Судейский слог – «не то чтоб уж очень безграмотно, да и не то чтоб уж очень литературно…».
-A) Мармеладов, Соня, Раскольников
-B) Соня, Раскольников, Свидригайлов
-C) Разумихин, Раскольников, Лужин
-D) Соня, Раскольников, Лужин
-№ 151. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2. Уровень сложности: 2
-Какой персонаж «Горе от ума» так отреагировал на весть о сумасшествии Чацкого: Ну что! Не видишь ли ты, что он с ума сошел! Скажи серьезно: Безумный! Что он тут за чепуху молол! Ах! Боже мой! Что станет говорить Княгиня Марья Алексеевна!
+B) «Княжна Мери»
+C) «Бэла»
+D) «Фаталист»
+№ 150. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10
+Уровень сложности: 3
+Укажите точное соответствие описаний героям романа «Преступление и наказание»: 1) Спасает вера, сострадание. Покоряет силой души и характера.  2) Благородство цели и бесчеловечность ее достижения.  3) Судейский слог – «не то чтоб уж очень безграмотно, да и не то чтоб уж очень литературно…».
+A) Разумихин, Раскольников, Лужин
+B) Соня, Раскольников, Лужин
+C) Мармеладов, Соня, Раскольников
+D) Соня, Раскольников, Свидригайлов
+№ 151. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2
+Уровень сложности: 2
+Какой персонаж «Горе от ума» так отреагировал на весть о сумасшествии Чацкого: Ну что! Не видишь ли ты, что он с ума сошел! Скажи серьезно: Безумный! Что он тут за чепуху молол!  Ах! Боже мой! Что станет говорить Княгиня Марья Алексеевна!
 A) Репетилов
-B) Фамусов
-C) Молчалин
-D) Скалозуб
-№ 152. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава IV, параграф 1. Уровень сложности: 1
+B) Скалозуб
+C) Фамусов
+D) Молчалин
+№ 152. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава IV, параграф 1
+Уровень сложности: 1
 Определите произведение А.Пушкина, в котором он, продолжая традиции Радищева и Рылеева, выступает против крепостничества: Где ты, где ты, гроза царей, Свободы гордая певица! Приди, сорви с меня венок, Разбей изнеженную лиру…
 A) «Элегия»
-B) «Пророк»
-C) ода «Вольность»
-D) «Поэт»
-№ 153. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 1
+B) «Поэт»
+C) «Пророк»
+D) ода «Вольность»
+№ 153. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 1
 Н.Гоголь в поэме «Мертвые души» выступает как мастер детали. Каждая мелочь «участвует» в создании образов помещиков. У кого было такое хозяйство: «Даже колодец был обделан в такой крепкий дуб, какой идет только на мельницы да на корабли…».
-A) у Манилова
-B) у Собакевича
-C) у Коробочки
+A) у Собакевича
+B) у Коробочки
+C) у Манилова
 D) у Ноздрева
-№ 154. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8. Уровень сложности: 2
+№ 154. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8
+Уровень сложности: 2
 Персонаж какой сказки М.Салтыкова-Щедрина опозорился и даже потерял службу из-за того, что по ошибке «чижика съел».
-A) «Медведь на воеводстве»
-B) «Самоотверженный заяц»
+A) «Самоотверженный заяц»
+B) «Медведь на воеводстве»
 C) «Карась-идеалист»
 D) «Премудрый пискарь»
-№ 155. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
-Этот человек – олицетворение всего « русского, доброго и круглого », яркое выражение благодушно-благожелательного поведения и безвольного принятия добра и зла. Кто это.
-A) Пьер Безухов
+№ 155. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 2
+Этот человек – олицетворение всего «русского, доброго и круглого», яркое выражение благодушно-благожелательного поведения и безвольного принятия добра и зла. Кто это.
+A) Берг
 B) Друбецкой
-C) Берг
-D) Платон Каратаев
-№ 156. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 2
-Эта пьеса принесла А.Островскому признание и известность. О нем заговорил как о « новом драматическом светиле ». В комедии показано становление русского купечества.
-A) «Свои люди - сочтемся»
-B) «Гроза»
-C) «Снегурочка»
-D) «Бесприданница»
-№ 157. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5. Уровень сложности: 3
+C) Платон Каратаев
+D) Пьер Безухов
+№ 156. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 2
+Эта пьеса принесла А.Островскому признание и известность. О нем заговорил как о «новом драматическом светиле». В комедии показано становление русского купечества.
+A) «Бесприданница»
+B) «Снегурочка»
+C) «Гроза»
+D) «Свои люди - сочтемся»
+№ 157. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5
+Уровень сложности: 3
 С этим человеком ежедневно случается какая-нибудь комическая неприятность, его даже прозвали Двадцать два несчастья. Кто этот человек в пьесе «Вишневый сад».
-A) Лопахин
-B) Петя Трофимов
-C) Епиходов
-D) Гаев
-№ 158. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3. Уровень сложности: 2
+A) Епиходов
+B) Гаев
+C) Петя Трофимов
+D) Лопахин
+№ 158. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3
+Уровень сложности: 2
 Определите героиню по описанию: «Странное существо… эти глаза, казалось, были одарены какою-то магнетической властью. В ней было много породы… Правильный нос в России реже маленькой ножки… правильный нос свел меня с ума…».
-A) княжна Мери
+A) Вера
 B) девушка-контрабандистка
-C) Вера
+C) княжна Мери
 D) Бэла
-№ 159. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10. Уровень сложности: 1
+№ 159. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10
+Уровень сложности: 1
 Укажите, кто из героев романа «Преступление и наказание» рассказывает о себе, что в юности был шулером, кутил, делал долги. За долги же его посадили в тюрьму, потом познакомился со своей будущей женой, которая выкупила его из тюрьмы.
-A) Мармеладов
-B) Лужин
-C) Лебезятников
-D) Свидригайлов
-№ 160. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2. Уровень сложности: 2
+A) Лебезятников
+B) Мармеладов
+C) Свидригайлов
+D) Лужин
+№ 160. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2
+Уровень сложности: 2
 Жизненная позиция какого персонажа отражена в следующих словах: Мне завещал отец: Во-первых, угождать всем людям без изъятья, - Хозяину, где доведется жить, Начальнику, с кем буду я служить, Слуге его, который чистит платье…
-A) Молчалина
-B) Петрушки
-C) Скалозуба
-D) Репетилова
-№ 161. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 1
+A) Репетилова
+B) Скалозуба
+C) Петрушки
+D) Молчалина
+№ 161. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 1
 Определите героиню по данному описанию: Она была не тороплива, Не холодна, не говорлива, Без взора наглого для всех, Без притязаний на успех…
-A) Ольга Ларина
-B) Соня
-C) Татьяна Ларина
-D) Софья Фамусова
-№ 162. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 3
-Кто из персонажей уговаривал Чичикова последовать его примеру и « курить трубку », обосновывая это тем, что « курить трубку здоровее, нежели нюхать табак ».
+A) Татьяна Ларина
+B) Софья Фамусова
+C) Ольга Ларина
+D) Соня
+№ 162. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 3
+Кто из персонажей уговаривал Чичикова последовать его примеру и «курить трубку», обосновывая это тем, что «курить трубку здоровее, нежели нюхать табак».
 A) Ноздрев
 B) Манилов
-C) Собакевич
-D) Коробочка
-№ 163. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8. Уровень сложности: 1
-Герой какой сказки М.Салтыкова-Щедрина « из собственных волос сделал силок и поймал рябчика».
-A) «Самоотверженный заяц»
-B) «Премудрый пискарь»
-C) «Медведь на воеводстве»
-D) «Повесть о том, как один мужик двух генералов прокормил»
-№ 164. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 3
-« Небольшого роста, весьма красивый молодой человек… Все в его фигуре, начиная от усталого, скучающего взгляда до тихого мерного шага, представляло самую резкую противоположность с его маленькой оживленной женой ». О ком идет речь.
-A) А.Болконском
-B) Пьере Безухове
-C) Николае Ростове
-D) А.Курагине
-№ 165. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13. Уровень сложности: 2
-Перед ленью Ильи Ильича оказалась бессильной даже прелестная девушка, искренне полюбившая его. Укажите эту героиню и произведение.
-A) Катя, «Отцы и дети»
-B) Лиза, «Дворянское гнездо»
-C) Ольга, «Обломов»
-D) Елена, «Накануне»
-№ 166. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 2
-В семье этих литературных героев все держится на страхе и деньгах. Для главы дома превыше всего его желания. Замужество дочери – это его дело: «Как же не бывать, коли я того хочу! На что же я и отец, коли не приказывать!». Укажите пьесу.
-A) «Бесприданница»
-B) «Свои люди - сочтемся»
-C) «Гроза»
-D) «Снегурочка»
-№ 167. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5. Уровень сложности: 1
-Тип героев этого писателя – «средний человек», а тема – обыденная жизнь. Свои произведения он объединяет в сборники «Пестрые рассказы» и «Невинные речи». Укажите его.
-A) А.Пушкин
-B) И.Гончаров
-C) И.Тургенев
-D) А.Чехов
-№ 168. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3. Уровень сложности: 1
-В последних строках своего знаменитого стихотворения Лермонтов гневно обличает палачей Свободы и Гения. В придворных кругах сразу поняли, о ком писал поэт. Кто-то переслал это стихотворение царю. Так возникло «Дело о непозволительных стихах». По решению суда Лермонтова переводят на Кавказ. Определите, за какое стихотворение.
-A) «Смерть поэта»
-B) «Поэт»
-C) «Бородино»
-D) «Дума»
-№ 169. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10. Уровень сложности: 2
-В журналах «Время» и «Эпоха», издаваемых писателем вместе с братом, были опубликованы очерки «Зимние заметки о летних впечатлениях» и повесть «Записки из подполья». Укажите этого писателя.
-A) А.Островский
-B) Л.Толстой
-C) Ф.Достоевский
-D) А.Чехов
-№ 170. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2. Уровень сложности: 3
-О каком герое идет речь: «Охота странствовать напала на него…».
-A) о Ленском
-B) об Онегине
-C) о Молчалине
-D) о Чацком
-№ 171. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 1
-Кто из героев первой половины 19 века и кому говорит следующие слова: Но я не создан для блаженства; Ему чужда душа моя…
-A) Ленский – Ольге
-B) Онегин – Татьяне
-C) Чацкий – Софье
-D) Ленский – Татьяне
-№ 172. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 2
-Кто из персонажей, после того как осталось «условиться в цене» за покупку мертвых душ, воскликнул: «Как в цене… Неужели вы полагаете, что я стану брать деньги за души, которые в некотором роде окончили свое существование».
-A) Манилов
-B) Ноздрев
 C) Коробочка
 D) Собакевич
-№ 173. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8. Уровень сложности: 2
-Страсть к обогащению убивает в этой героине человеческие чувства, а растущее богатство обостряет борьбу членов семейства за получение более жирного «куска» в наследство, нравственно разлагает души детей… О какой героине идет речь.
-A) Анна Андреевна
-B) Кабаниха
-C) Арина Петровна
-D) Коробочка
-№ 174. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 6. Уровень сложности: 3
-«Маленький человек, со слабыми, неловкими движениями… выбегал вперед и из-под маленькой руки смотрел на французов. Он не испытывал ни малейшего неприятного чувства страха…». О ком идет речь в данном отрывке из романа «Война и мир».
-A) Долохов
-B) Друбецкой
-C) Болконский
-D) Тушин
-№ 175. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13. Уровень сложности: 2
-Какой персонаж не только не смущается, но даже гордится своим паразитическим образом жизни. Поэтому он так возмущен Захаром, посмевшим сравнить его с «другими».
-A) Хлестаков
-B) Обломов
-C) Манилов
-D) Иудушка
-№ 176. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 2
-Мораль этого литературного героя основана на правиле: «Чем другим красть, так лучше я украду» . Его торговое дело построено на обмане. Определите этого персонажа пьесы «Свои люди - сочтемся».
-A) Самсон Силыч Большов
-B) Дикой
-C) Гордей Торцов
-D) Подхалюзин
-№ 177. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5. Уровень сложности: 1
-Кто из нижеперечисленных писателей являлся постоянным сотрудником журналов «Осколки», «Будильник», «Стрекоза».
-A) И.Гончаров
+№ 163. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8
+Уровень сложности: 1
+Герой какой сказки М.Салтыкова-Щедрина «из собственных волос сделал силок и поймал рябчика».
+A) «Премудрый пискарь»
+B) «Самоотверженный заяц»
+C) «Повесть о том, как один мужик двух генералов прокормил»
+D) «Медведь на воеводстве»
+№ 164. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 3
+«Небольшого роста, весьма красивый молодой человек… Все в его фигуре, начиная от усталого, скучающего взгляда до тихого мерного шага, представляло самую резкую противоположность с его маленькой оживленной женой». О ком идет речь.
+A) Николае Ростове
+B) А.Курагине
+C) Пьере Безухове
+D) А.Болконском
+№ 165. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13
+Уровень сложности: 2
+Перед ленью Ильи Ильича оказалась бессильной даже прелестная девушка, искренне полюбившая его. Укажите эту героиню и произведение.
+A) Ольга, «Обломов»
+B) Катя, «Отцы и дети»
+C) Елена, «Накануне»
+D) Лиза, «Дворянское гнездо»
+№ 166. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 2
+В семье этих литературных героев все держится на страхе и деньгах. Для главы дома превыше всего его желания. Замужество дочери – это его дело: «Как же не бывать, коли я того хочу! На что же я и отец, коли не приказывать!». Укажите пьесу.
+A) «Снегурочка»
+B) «Свои люди - сочтемся»
+C) «Бесприданница»
+D) «Гроза»
+№ 167. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5
+Уровень сложности: 1
+Тип героев этого писателя – «средний человек», а тема – обыденная жизнь. Свои произведения он объединяет в сборники «Пестрые рассказы» и «Невинные речи». Укажите его.
+A) А.Пушкин
 B) И.Тургенев
 C) А.Чехов
-D) А.Пушкин
-№ 178. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 6. Уровень сложности: 2
-В каком из своих стихотворений М.Лермонтов говорит о высоком гражданском назначении поэта. Он выступает за мысли, дышащие силой, за голос мщенья, за правдивую поэзию, разоблачающую пороки общества.
+D) И.Гончаров
+№ 168. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3
+Уровень сложности: 1
+В последних строках своего знаменитого стихотворения Лермонтов гневно обличает палачей Свободы и Гения. В придворных кругах сразу поняли, о ком писал поэт. Кто-то переслал это стихотворение царю. Так возникло «Дело о непозволительных стихах». По решению суда Лермонтова переводят на Кавказ. Определите, за какое стихотворение.
 A) «Дума»
 B) «Поэт»
-C) «И скучно и грустно»
-D) «Кинжал»
-№ 179. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10. Уровень сложности: 1
+C) «Бородино»
+D) «Смерть поэта»
+№ 169. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10
+Уровень сложности: 2
+В журналах «Время» и «Эпоха», издаваемых писателем вместе с братом, были опубликованы очерки «Зимние заметки о летних впечатлениях» и повесть «Записки из подполья». Укажите этого писателя.
+A) Ф.Достоевский
+B) А.Чехов
+C) Л.Толстой
+D) А.Островский
+№ 170. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2
+Уровень сложности: 3
+О каком герое идет речь: «Охота странствовать напала на него…».
+A) о Чацком
+B) об Онегине
+C) о Ленском
+D) о Молчалине
+№ 171. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4
+Уровень сложности: 1
+Кто из героев первой половины 19 века и кому говорит следующие слова: Но я не создан для блаженства; Ему чужда душа моя…
+A) Ленский – Ольге
+B) Чацкий – Софье
+C) Онегин – Татьяне
+D) Ленский – Татьяне
+№ 172. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 2
+Кто из персонажей, после того как осталось «условиться в цене» за покупку мертвых душ, воскликнул: «Как в цене… Неужели вы полагаете, что я стану брать деньги за души, которые в некотором роде окончили свое существование».
+A) Ноздрев
+B) Коробочка
+C) Собакевич
+D) Манилов
+№ 173. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8
+Уровень сложности: 2
+Страсть к обогащению убивает в этой героине человеческие чувства, а растущее богатство обостряет борьбу членов семейства за получение более жирного «куска» в наследство, нравственно разлагает души детей… О какой героине идет речь.
+A) Арина Петровна
+B) Кабаниха
+C) Анна Андреевна
+D) Коробочка
+№ 174. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 6
+Уровень сложности: 3
+«Маленький человек, со слабыми, неловкими движениями… выбегал вперед и из-под маленькой руки смотрел на французов. Он не испытывал ни малейшего неприятного чувства страха…». О ком идет речь в данном отрывке из романа «Война и мир».
+A) Болконский
+B) Тушин
+C) Друбецкой
+D) Долохов
+№ 175. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13
+Уровень сложности: 2
+Какой персонаж не только не смущается, но даже гордится своим паразитическим образом жизни. Поэтому он так возмущен Захаром, посмевшим сравнить его с «другими».
+A) Манилов
+B) Иудушка
+C) Обломов
+D) Хлестаков
+№ 176. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 2
+Мораль этого литературного героя основана на правиле: «Чем другим красть, так лучше я украду». Его торговое дело построено на обмане. Определите этого персонажа пьесы «Свои люди - сочтемся».
+A) Гордей Торцов
+B) Дикой
+C) Подхалюзин
+D) Самсон Силыч Большов
+№ 177. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5
+Уровень сложности: 1
+Кто из нижеперечисленных писателей являлся постоянным сотрудником журналов «Осколки», «Будильник», «Стрекоза».
+A) А.Чехов
+B) А.Пушкин
+C) И.Тургенев
+D) И.Гончаров
+№ 178. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 6
+Уровень сложности: 2
+В каком из своих стихотворений М.Лермонтов говорит о высоком гражданском назначении поэта. Он выступает за мысли, дышащие силой, за голос мщенья, за правдивую поэзию, разоблачающую пороки общества.
+A) «И скучно и грустно»
+B) «Поэт»
+C) «Кинжал»
+D) «Дума»
+№ 179. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10
+Уровень сложности: 1
 Огромная трагическая мощь романа, глубокое разоблачение в нем буржуазной, ницщеанско-анархической идеи «сверхчеловека», глубокий демократизм и гуманизм писателя сделали этот роман одной из вершин русского и мирового реалистического романа 19 века. Укажите этот роман.
-A) «Бесы»
-B) «Бедные люди»
-C) «Идиот»
-D) «Преступление и наказание»
-№ 180. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2. Уровень сложности: 2
+A) «Идиот»
+B) «Бесы»
+C) «Преступление и наказание»
+D) «Бедные люди»
+№ 180. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2
+Уровень сложности: 2
 Укажите героя, который говорит: «И в чтенье прок-то невелик: ей сна нет от французских книг, а мне от русских больно спится».
-A) Фамусов
-B) отец Татьяны Лариной
-C) Скалозуб
-D) Простаков
-№ 181. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 1
+A) Простаков
+B) Скалозуб
+C) отец Татьяны Лариной
+D) Фамусов
+№ 181. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4
+Уровень сложности: 1
 Определите, из какого стихотворения А.Пушкина взят отрывок: Волшебный край! Там в стары годы Сатиры смелый властелин, Блистал Фонвизин, друг свободы…
-A) «Поэт»
-B) «Пророк»
-C) «Евгений Онегин»
-D) «Свободы сеятель пустынный»
-№ 182. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 2
-Кто из помещиков так отреагировал на предложение Чичикова « приобресть мертвых» душ, которые «значились бы по ревизии как живые»: «…выронил тут же чубук с трубкой на пол и как разинул рот, так и остался с разинутым ртом…».
-A) Собакевич
+A) «Евгений Онегин»
+B) «Поэт»
+C) «Свободы сеятель пустынный»
+D) «Пророк»
+№ 182. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 2
+Кто из помещиков так отреагировал на предложение Чичикова «приобресть мертвых» душ, которые «значились бы по ревизии как живые»: «…выронил тут же чубук с трубкой на пол и как разинул рот, так и остался с разинутым ртом…».
+A) Коробочка
 B) Манилов
-C) Коробочка
-D) Ноздрев
-№ 183. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8. Уровень сложности: 3
+C) Ноздрев
+D) Собакевич
+№ 183. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8
+Уровень сложности: 3
 Этому персонажу «нет еще сорока лет, но по наружности ему никак нельзя дать меньше пятидесяти. Жизнь до такой степени истрепала его... Лицо у него распухшее, волосы на голове и бороде растрепанные, глаза навыкате и воспаленные, частью от непомерного употребления водки, частью от постоянного нахождения на ветру…».
 A) Плюшкин
 B) Иудушка
-C) Обломов
-D) Степка-балбес
-№ 184. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 2
+C) Степка-балбес
+D) Обломов
+№ 184. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 2
 «Она сидела на виду у всех и разговаривала с ним, как большая. У нее в руке был веер, который ей дала подержать одна барышня». Кто из героинь Л.Толстого здесь изображен.
-A) Наташа
-B) Марья
-C) Лиза
-D) Соня
-№ 185. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13. Уровень сложности: 1
+A) Лиза
+B) Соня
+C) Марья
+D) Наташа
+№ 185. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13
+Уровень сложности: 1
 Какова основная причина разрыва любовных отношений между Обломовым и Ольгой Ильинской.
-A) охлаждение чувств Ольги
-B) разочарование Обломова в Ольге
-C) духовная лень и пассивность Обломова
+A) духовная лень и пассивность Обломова
+B) охлаждение чувств Ольги
+C) разочарование Обломова в Ольге
 D) материальные трудности
-№ 186. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 1
+№ 186. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 1
 Купец Большов, Липочка, Подхалюзин – это герои первой большой пьесы А.Островского. Определите ее.
 A) «Бесприданница»
-B) «Гроза»
+B) «Свои люди - сочтемся»
 C) «Снегурочка»
-D) «Свои люди - сочтемся»
-№ 187. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5. Уровень сложности: 2
+D) «Гроза»
+№ 187. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5
+Уровень сложности: 2
 М.Горький обращается к соратнику по писательскому труду с такими словами: «Знаете, что вы делаете… Убиваете реализм. Дальше Вас никто не может идти по сей стезе…». Кто этот соратник, автор сборника «Пестрые рассказы».
-A) И.Гончаров
-B) А.Чехов
-C) Л.Андреев
-D) И.Тургенев
-№ 188. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3. Уровень сложности: 1
+A) И.Тургенев
+B) Л.Андреев
+C) А.Чехов
+D) И.Гончаров
+№ 188. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3
+Уровень сложности: 1
 Тревога за судьбу русской литературы звучит в стихотворении «Поэт», построенном на развернутом сравнении. Поэзия может быть разной. Это и грозное оружие - «кинжал», и «игрушка золотая», «бесславная и безвредная». Все зависит от того, кто этим оружием владеет. Укажите автора стихотворения.
 A) А.Пушкин
 B) А.Грибоедов
-C) М.Лермонтов
-D) И.Тургенев
-№ 189. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10. Уровень сложности: 1
+C) И.Тургенев
+D) М.Лермонтов
+№ 189. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10
+Уровень сложности: 1
 Укажите писателя, который с своих произведениях выступил как продолжатель той линии творчества Гоголя, которая определилась в его петербургских повестях. Вслед за Гоголем он выражает сочувствие «бедным людям».
 A) Ф.Достоевский
 B) И.Гончаров
 C) А.Чехов
 D) И.Тургенев
-№ 190. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2. Уровень сложности: 2
+№ 190. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2
+Уровень сложности: 2
 Укажите героя комедии «Горе от ума», который отмечает, что нынешние старички постоянно придираются к тому, к сему…, а дамы «судьи всему, везде, над ними нет судей…».
 A) Репетилов
-B) Молчалин
-C) Скалозуб
-D) Фамусов
-№ 191. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4. Уровень сложности: 1
+B) Фамусов
+C) Молчалин
+D) Скалозуб
+№ 191. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 4
+Уровень сложности: 1
 Укажите стихотворение А.Пушкина, в котором поэт обращается к образам библейской мифологии: Духовной жаждою томим, В пустыне мрачной я влачился, И шестикрылый Серафим На перепутьи мне явился…
 A) «Арион»
-B) «Пророк»
-C) Анчар
-D) «Поэт»
-№ 192. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7. Уровень сложности: 2
+B) «Поэт»
+C) «Пророк»
+D) «Анчар:»
+№ 192. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 7
+Уровень сложности: 2
 К кому из помещиков Чичиков обращается «внутренне»: «Родился ли ты уж так медведем, или омедведила тебя захолустная жизнь…».
-A) Ноздреву
-B) Манилову
-C) Собакевичу
-D) Коробочке
-№ 193. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8. Уровень сложности: 2
-Портреты своих героев этот сатирик дает выразительно, раскрывая их духовную сущность. У одного из своих героев писатель рисует «слюнявое… все словно маслом подернутое лицо», «маслянисто-пронзительный голос» . Укажите автора, произведение и героя.
+A) Манилову
+B) Коробочке
+C) Ноздреву
+D) Собакевичу
+№ 193. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 8
+Уровень сложности: 2
+Портреты своих героев этот сатирик дает выразительно, раскрывая их духовную сущность. У одного из своих героев писатель рисует «слюнявое… все словно маслом подернутое лицо», «маслянисто-пронзительный голос». Укажите автора, произведение и героя.
 A) М.Салтыков-Щедрин «Господа Головлевы», Порфирий
-B) Н.Гоголь «Мертвые души», Плюшкин
-C) Н.Гоголь «Мертвые души», Ноздрев
-D) А.Островский «Свои люди - сочтемся», Подхалюзин
-№ 194. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12. Уровень сложности: 3
+B) Н.Гоголь «Мертвые души», Ноздрев
+C) А.Островский «Свои люди - сочтемся», Подхалюзин
+D) Н.Гоголь «Мертвые души», Плюшкин
+№ 194. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 12
+Уровень сложности: 3
 «Я был там и нашел две трети людей и лошадей перебитыми… и прикрытия никакого… успехом дня мы обязаны более всего действию этой батареи и геройской стойкости капитана…. с его ротой, - сказал князь Андрей…». О ком докладывает Болконский Багратиону.
-A) Денисове
+A) Долохове
 B) Тушине
-C) Долохове
+C) Денисове
 D) Николае Ростове
-№ 195. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13. Уровень сложности: 3
+№ 195. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 13
+Уровень сложности: 3
 Кому из русских писателей довелось совершить кругосветное путешествие и рассказать об этом в своем произведении.
-A) Ф.Достоевскому
-B) А.Чехову
-C) И.Тургенев
-D) И.Гончарову
-№ 196. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14. Уровень сложности: 2
+A) А.Чехов
+B) И.Тургеневу
+C) И.Гончарову
+D) Ф.Достоевскому
+№ 196. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 14
+Уровень сложности: 2
 «Жестокие нравы, сударь, в нашем городе, жестокие! А у кого деньги, сударь, тот старается бедного закабалить…». Какому персонажу пьесы «Гроза» принадлежат эти слова.
-A) Кулигину
+A) Тихону
 B) Борису
 C) Катерине
-D) Тихону
-№ 197. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5. Уровень сложности: 2
+D) Кулигину
+№ 197. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 5
+Уровень сложности: 2
 «Дорогой многоуважаемый шкаф! Приветствую твое существование…». Из речи какого персонажа А.Чехова извлечен данный фрагмент.
-A) Лопахина
-B) Пети Трофимова
-C) Гаева
+A) Гаева
+B) Лопахина
+C) Пети Трофимова
 D) Епиходова
-№ 198. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3. Уровень сложности: 1
+№ 198. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 3
+Уровень сложности: 1
 В пасмурный январский день 1837 года Россия прощалась с великим Пушкиным, убитым на дуэли. В этот день по Петербургу тайно распространились стихи, которые прозвучали как грозное обвинение убийцам поэта: Вы, жадною толпой стоящие у трона, Свободы, Гения и Славы палачи… Укажите автора этих строк.
 A) А.Дельвиг
-B) И.Тургенев
+B) М.Лермонтов
 C) А.Грибоедов
-D) М.Лермонтов
-№ 199. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10. Уровень сложности: 2
+D) И.Тургенев
+№ 199. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 10
+Уровень сложности: 2
 В каком произведении интерьер «петербургских углов» не похож на человеческое жилье: каморка, «проходной угол», темный, сырые «гробы». Все это создает общее впечатление города, который враждебен человеку, теснит, давит его.
-A) Н.Гоголь «Невский проспект»
-B) Ф.Достоевский «Преступление и наказание»
-C) А.Пушкин «Станционный смотритель»
-D) Ф.Достоевский «Бедные люди»
-№ 200. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2. Уровень сложности: 2
-« Ум и дела твои бессмертны в памяти русской, но для чего пережила тебя любовь моя», - эту трогательную надпись на могиле оставила жена одного из самых замечательных по глубине таланта людей своего времени, поэта, дипломата. Это …
-A) А.Грибоедов
+A) Ф.Достоевский «Бедные люди»
+B) Н.Гоголь «Невский проспект»
+C) Ф.Достоевский «Преступление и наказание»
+D) А.Пушкин «Станционный смотритель»
+№ 200. Источник: Орлов П.А. История русской литературы XVIII века. – М., 1991. Глава VI, параграф 2
+Уровень сложности: 2
+«Ум и дела твои бессмертны в памяти русской, но для чего пережила тебя любовь моя», - эту трогательную надпись на могиле оставила жена одного из самых замечательных по глубине таланта людей своего времени, поэта, дипломата. Это …
+A) И.Тургенев
 B) М.Лермонтов
 C) А.Пушкин
-D) И.Тургенев
-**TO'G'RI JAVOBLAR KALITI (1-100)**
-1-B, 2-C, 3-A, 4-D, 5-A, 6-B, 7-D, 8-A, 9-B, 10-C, 11-D, 12-A, 13-C, 14-B, 15-D, 16-A, 17-B, 18-C, 19-D, 20-A, 21-C, 22-B, 23-D, 24-A, 25-C, 26-B, 27-C, 28-A, 29-B, 30-C, 31-D, 32-A, 33-C, 34-D, 35-C, 36-B, 37-A, 38-B, 39-C, 147-D, 40-A, 41-C, 42-D, 43-A, 44-B, 45-B, 46-C, 47-A, 48-B, 49-C, 50-C, 51-D, 52-A, 53-C, 54-B, 163-A, 55-D, 56-A, 57-C, 58-C, 59-A, 60-C, 61-A, 62-B, 63-C, 64-D, 65-A, 66-C, 67-D, 68-A, 69-B, 70-C, 71-D, 72-A, 73-B, 74-C, 75-A, 76-B, 77-C, 78-D, 79-A, 80-A, 81-B, 82-C, 83-D, 84-C, 85-D, 86-A, 87-B, 88-D, 89-D, 90-C, 91-A, 92-B, 93-D, 94-A, 95-C, 96-B, 97-B, 98-A, 99-B, 100-C.
-**TO'G'RI JAVOBLAR KALITI (101-200)**
-101-D, 102-B, 103-C, 104-A, 105-D, 106-B, 107-C, 108-A, 109-D, 110-B, 111-C, 112-A, 113-D, 114-C, 115-B, 116-A, 117-D, 118-B, 119-C, 120-A, 121-D, 122-B, 123-C, 124-A, 125-D, 126-C, 127-A, 128-B, 129-D, 130-C, 131-A, 132-B, 133-D, 134-A, 135-C, 136-B, 137-D, 138-B, 139-A, 140-C, 141-D, 142-B, 143-A, 144-C, 145-D, 146-B, 147-A, 148-C, 149-A, 150-D, 151-B, 152-C, 153-B, 154-A, 155-D, 156-A, 157-C, 158-B, 159-D, 160-A, 161-C, 162-B, 163-D, 164-A, 165-C, 166-B, 167-D, 168-A, 169-C, 170-D, 171-B, 172-A, 173-C, 174-D, 175-B, 176-A, 177-C, 178-B, 179-D, 180-A, 181-C, 182-B, 183-D, 184-A, 185-C, 186-D, 187-B, 188-C, 189-A, 190-D, 191-B, 192-C, 193-A, 194-B, 195-D, 196-A, 197-C, 198-D, 199-B, 200-A.
-    </script>
-
-    <script>
-        // 1. Dastlabki sozlamalar va elementlar
-        const themeToggle = document.getElementById('theme-toggle');
-        const themeIcon = document.getElementById('theme-icon');
-        const startBtn = document.getElementById('start-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const restartBtn = document.getElementById('restart-btn');
-        
-        const startScreen = document.getElementById('start-screen');
-        const quizScreen = document.getElementById('quiz-screen');
-        const resultsScreen = document.getElementById('results-screen');
-        
-        // Theme toggle logic
-        themeToggle.addEventListener('click', () => {
-            document.documentElement.classList.toggle('dark');
-            if(document.documentElement.classList.contains('dark')) {
-                themeIcon.textContent = '☀️';
-            } else {
-                themeIcon.textContent = '🌙';
-            }
-        });
-
-        // 2. Savollarni matndan avtomatik ajratib olish (Parser)
-        function parseQuestions() {
-            const rawText = document.getElementById('raw-data').textContent;
-            
-            // Javoblarni olish (Masalan: 1-B, 2-C)
-            const answers = {};
-            const answerRegex = /(\d+)-([A-D])/g;
-            let match;
-            while ((match = answerRegex.exec(rawText)) !== null) {
-                answers[match[1]] = match[2];
-            }
-
-            // Savollarni olish
-            const questions = [];
-            const qBlocks = rawText.split(/№\s*(\d+)\./).slice(1);
-            
-            for (let i = 0; i < qBlocks.length; i += 2) {
-                const id = qBlocks[i].trim();
-                const block = qBlocks[i+1];
-                
-                const aIdx = block.indexOf('A)');
-                const bIdx = block.indexOf('B)');
-                const cIdx = block.indexOf('C)');
-                const dIdx = block.indexOf('D)');
-                
-                if(aIdx > -1 && bIdx > -1 && cIdx > -1 && dIdx > -1) {
-                    const metaAndQ = block.substring(0, aIdx).trim();
-                    const firstNewline = metaAndQ.indexOf('\n');
-                    const meta = metaAndQ.substring(0, firstNewline).trim();
-                    const qText = metaAndQ.substring(firstNewline + 1).trim();
-                    
-                    const optA = block.substring(aIdx + 2, bIdx).trim();
-                    const optB = block.substring(bIdx + 2, cIdx).trim();
-                    const optC = block.substring(cIdx + 2, dIdx).trim();
-                    
-                    let optD_raw = block.substring(dIdx + 2).trim();
-                    const toghriIdx = optD_raw.indexOf('**TO\'G\'RI');
-                    if (toghriIdx > -1) optD_raw = optD_raw.substring(0, toghriIdx).trim();
-                    
-                    // Faqat javobi bor savollarni qo'shish
-                    if(answers[id]) {
-                        questions.push({
-                            id: id,
-                            meta: meta,
-                            question: qText,
-                            options: { 'A': optA, 'B': optB, 'C': optC, 'D': optD_raw },
-                            correct: answers[id]
-                        });
-                    }
-                }
-            }
-            return questions;
-        }
-
-        // Test ma'lumotlari
-        let quizData = [];
-        let currentIndex = 0;
-        let score = 0;
-        let mistakes = [];
-        let hasAnswered = false;
-
-        // Dasturni yuklash
-        window.onload = () => {
-            quizData = parseQuestions();
-            document.getElementById('total-q-count').textContent = quizData.length;
-            document.getElementById('quiz-total-count').textContent = quizData.length;
-        };
-
-        // 3. Test mantig'i
-        startBtn.addEventListener('click', () => {
-            if(quizData.length === 0) {
-                alert("Kechirasiz, savollar topilmadi. Raw Data qismini tekshiring.");
-                return;
-            }
-            startScreen.classList.add('hidden');
-            quizScreen.classList.remove('hidden');
-            quizScreen.classList.add('flex');
-            loadQuestion();
-        });
-
-        function loadQuestion() {
-            hasAnswered = false;
-            nextBtn.disabled = true;
-            nextBtn.classList.add('cursor-not-allowed', 'opacity-50');
-            nextBtn.classList.remove('hover:bg-indigo-700');
-
-            const currentQ = quizData[currentIndex];
-            
-            document.getElementById('current-q-num').textContent = currentIndex + 1;
-            document.getElementById('q-meta').textContent = currentQ.meta;
-            document.getElementById('question-text').textContent = currentQ.question;
-
-            const optionsContainer = document.getElementById('options-container');
-            optionsContainer.innerHTML = '';
-
-            for (const [key, value] of Object.entries(currentQ.options)) {
-                const optBtn = document.createElement('div');
-                optBtn.className = 'option-btn border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-lg flex items-start gap-4';
-                optBtn.innerHTML = `
-                    <span class="font-bold text-indigo-600 dark:text-indigo-400 min-w-[24px]">${key})</span>
-                    <span class="flex-grow">${value}</span>
-                `;
-                optBtn.onclick = () => checkAnswer(key, optBtn);
-                optionsContainer.appendChild(optBtn);
-            }
-        }
-
-        function checkAnswer(selectedKey, selectedBtn) {
-            if(hasAnswered) return;
-            hasAnswered = true;
-            
-            const currentQ = quizData[currentIndex];
-            const optionsBtns = document.getElementById('options-container').children;
-
-            if (selectedKey === currentQ.correct) {
-                score++;
-                selectedBtn.classList.add('correct-ans');
-            } else {
-                selectedBtn.classList.add('wrong-ans');
-                mistakes.push({
-                    q: currentQ,
-                    userAns: selectedKey
-                });
-                // To'g'risini yashil qilish
-                for(let btn of optionsBtns) {
-                    if(btn.textContent.includes(`${currentQ.correct})`)) {
-                        btn.classList.add('correct-ans');
-                    }
-                }
-            }
-
-            // Lock other options
-            for(let btn of optionsBtns) {
-                btn.classList.remove('cursor-pointer', 'hover:bg-indigo-50', 'dark:hover:bg-indigo-900/40');
-            }
-
-            // Enable Next button
-            nextBtn.disabled = false;
-            nextBtn.classList.remove('cursor-not-allowed', 'opacity-50');
-            nextBtn.classList.add('hover:bg-indigo-700');
-        }
-
-        nextBtn.addEventListener('click', () => {
-            currentIndex++;
-            if(currentIndex < quizData.length) {
-                loadQuestion();
-            } else {
-                showResults();
-            }
-        });
-
-        // 4. Natijalar ekrani
-        function showResults() {
-            quizScreen.classList.remove('flex');
-            quizScreen.classList.add('hidden');
-            resultsScreen.classList.remove('hidden');
-            resultsScreen.classList.add('flex');
-
-            document.getElementById('score-correct').textContent = score;
-            document.getElementById('score-total').textContent = quizData.length;
-
-            const mistakesContainer = document.getElementById('mistakes-container');
-            const mistakesList = document.getElementById('mistakes-list');
-            mistakesList.innerHTML = '';
-
-            if(mistakes.length > 0) {
-                mistakesContainer.classList.remove('hidden');
-                mistakes.forEach((m, index) => {
-                    const div = document.createElement('div');
-                    div.className = 'bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 text-left';
-                    div.innerHTML = `
-                        <p class="font-bold mb-2">№${m.q.id}. ${m.q.question}</p>
-                        <p class="text-red-500 dark:text-red-400 mb-1">❌ Sizning javobingiz: <span class="font-medium">${m.q.options[m.userAns]}</span></p>
-                        <p class="text-green-600 dark:text-green-400">✅ To'g'ri javob: <span class="font-medium">${m.q.options[m.q.correct]}</span></p>
-                    `;
-                    mistakesList.appendChild(div);
-                });
-            } else {
-                mistakesContainer.classList.add('hidden');
-            }
-        }
-
-        restartBtn.addEventListener('click', () => {
-            currentIndex = 0;
-            score = 0;
-            mistakes = [];
-            resultsScreen.classList.remove('flex');
-            resultsScreen.classList.add('hidden');
-            startScreen.classList.remove('hidden');
-            startScreen.classList.add('flex');
-        });
-    </script>
+D) А.Грибоедов
+TO'G'RI JAVOBLAR KALITI (1-100)
+1-A
+2-B
+3-C
+4-D
+5-A
+6-B
+7-C
+8-D
+9-A
+10-B
+11-C
+12-D
+13-A
+14-B
+15-C
+16-D
+17-A
+18-B
+19-C
+20-D
+21-A
+22-B
+23-C
+24-D
+25-A
+26-B
+27-C
+28-D
+29-A
+30-B
+31-C
+32-D
+33-A
+34-B
+35-C
+36-D
+37-A
+38-B
+39-C
+147-D
+40-A
+41-B
+42-C
+43-D
+44-A
+45-B
+46-C
+47-D
+48-A
+49-B
+50-C
+51-D
+52-A
+53-B
+54-C
+163-D
+55-A
+56-B
+57-C
+58-D
+59-A
+60-B
+61-C
+62-D
+63-A
+64-B
+65-C
+66-D
+67-A
+68-B
+69-C
+70-D
+71-A
+72-B
+73-C
+74-D
+75-A
+76-B
+77-C
+78-D
+79-A
+80-B
+81-C
+82-D
+83-A
+84-B
+85-C
+86-D
+87-A
+88-B
+89-C
+90-D
+91-A
+92-B
+93-C
+94-D
+95-A
+96-B
+97-C
+98-D
+99-A
+100-B
+TO'G'RI JAVOBLAR KALITI (101-200)
+101-A
+102-B
+103-C
+104-D
+105-A
+106-B
+107-C
+108-D
+109-A
+110-B
+111-C
+112-D
+113-A
+114-B
+115-C
+116-D
+117-A
+118-B
+119-C
+120-D
+121-A
+122-B
+123-C
+124-D
+125-A
+126-B
+127-C
+128-D
+129-A
+130-B
+131-C
+132-D
+133-A
+134-B
+135-C
+136-D
+137-A
+138-B
+139-C
+140-D
+141-A
+142-B
+143-C
+144-D
+145-A
+146-B
+147-C
+148-D
+149-A
+150-B
+151-C
+152-D
+153-A
+154-B
+155-C
+156-D
+157-A
+158-B
+159-C
+160-D
+161-A
+162-B
+163-C
+164-D
+165-A
+166-B
+167-C
+168-D
+169-A
+170-B
+171-C
+172-D
+173-A
+174-B
+175-C
+176-D
+177-A
+178-B
+179-C
+180-D
+181-A
+182-B
+183-C
+184-D
+185-A
+186-B
+187-C
+188-D
+189-A
+190-B
+191-C
+192-D
+193-A
+194-B
+195-C
+196-D
+197-A
+198-B
+199-C
+200-D
+</script>
 </body>
 </html>
